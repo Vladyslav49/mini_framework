@@ -1,0 +1,8 @@
+[flake8]
+count=True
+statistics=True
+show-source=True
+
+max-line-length=79
+import-order-style=smarkets
+application-import-names=mini_framework
