@@ -15,12 +15,18 @@ optional = true
 
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.4.4"
+black = ">=23.12.1,<23.13.0"
 flake8 = "^7.0.0"
-httpx = "^0.26.0"
-black = "^23.12.1"
 flake8-commas = "^2.1.0"
 flake8-import-order = "^0.18.2"
+flake8-bugbear = "^24.1.16"
+flake8-comprehensions = "^3.14.0"
+flake8-print = "^5.0.0"
+flake8-docstrings = "^1.7.0"
+pyright = "^1.1.347"
+pytest = "^7.4.4"
+httpx = "^0.26.0"
+pre-commit = "^3.6.0"
 
 [build-system]
 requires = ["poetry-core"]

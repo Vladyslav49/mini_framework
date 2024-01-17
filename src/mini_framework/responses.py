@@ -8,7 +8,7 @@ class Response:
         content: Any,
         *,
         status_code: int = 200,
-        headers: Mapping[str, str] = None,
+        headers: Mapping[str, str] | None = None,
         media_type: str | None = None,
         charset: str = "utf-8",
     ) -> None:
@@ -28,7 +28,7 @@ class PlainTextResponse(Response):
         content: Any,
         *,
         status_code: int = 200,
-        headers: Mapping[str, str] = None,
+        headers: Mapping[str, str] | None = None,
         charset: str = "utf-8",
     ) -> None:
         super().__init__(

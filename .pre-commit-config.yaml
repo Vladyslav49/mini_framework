@@ -1,0 +1,49 @@
+fail_fast: true
+repos:
+  - repo: local
+    hooks:
+      - id: format
+        name: black
+        entry: black
+        language: python
+        types:
+          - python
+        always_run: true
+        args: ['src/mini_framework', 'tests/', 'example/', '-t', 'py310', '-t', 'py311', '-t', 'py312', '--check', '--diff']
+        additional_dependencies:
+          - 'black==23.12.1'
+      - id: lint
+        name: flake8
+        entry: flake8
+        language: python
+        pass_filenames: false
+        always_run: true
+        types:
+          - python
+        additional_dependencies:
+          - 'flake8==7.0.0'
+          - 'flake8-commas==2.1.0'
+          - 'flake8-import-order==0.18.2'
+          - 'flake8-bugbear==24.1.16'
+          - 'flake8-comprehensions==3.14.0'
+          - 'flake8-print==5.0.0'
+      - id: type-check
+        name: pyright
+        entry: pyright
+        language: python
+        pass_filenames: false
+        always_run: true
+        types:
+          - python
+        additional_dependencies:
+          - 'pyright==1.1.347'
+      - id: test
+        name: pytest
+        entry: bash -c 'export PYTHONPATH=$PYTHONPATH:src/ && pytest'
+        language: python
+        pass_filenames: false
+        always_run: true
+        args: ['tests/', 'example/']
+        additional_dependencies:
+          - 'httpx==0.26.0'
+          - 'pytest==7.4.4'

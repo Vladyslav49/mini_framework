@@ -1,4 +1,9 @@
-.idea/
+# python
 __pycache__/
 *.pyc
+
+# PyCharm
+.idea/
+
+# pytest
 .pytest_cache/

@@ -6,3 +6,21 @@ show-source=True
 max-line-length=79
 import-order-style=smarkets
 application-import-names=mini_framework
+max-complexity=10
+max-cognitive-complexity=10
+docstring-convention=pep257
+ignore=
+    # Missing docstring in public module
+    D100
+    # Missing docstring in public class
+    D101
+    # Missing docstring in public package
+    D104
+    # Missing docstring in magic method
+    D105
+    # Missing docstring in __init__
+    D107
+per-file-ignores=
+    # Ignore docstrings in tests
+    test_*.py:D100,D103
+    conftest.py:D100,D103

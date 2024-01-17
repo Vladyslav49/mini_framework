@@ -6,7 +6,7 @@ This is a mini framework for building web applications in Python.
 
 ## Features
 - [x] Routing
-- [ ] Routers
+- [x] Routers
 - [ ] Middlewares
 - [ ] Filters
 - [ ] Dependency Injection
