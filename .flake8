@@ -20,6 +20,8 @@ ignore=
     D105
     # Missing docstring in __init__
     D107
+    # Line break before binary operator
+    W503
 per-file-ignores=
     # Ignore docstrings in tests
     test_*.py:D100,D103
