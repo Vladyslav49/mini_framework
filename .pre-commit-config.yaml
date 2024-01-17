@@ -9,7 +9,7 @@ repos:
         types:
           - python
         always_run: true
-        args: ['src/mini_framework', 'tests/', 'example/', '-t', 'py310', '-t', 'py311', '-t', 'py312', '--check', '--diff']
+        args: ['src/mini_framework', 'tests/', 'example/', '-t', 'py310', '-t', 'py311', '-t', 'py312', '--check', '--diff', '--line-length', '79']
         additional_dependencies:
           - 'black==23.12.1'
       - id: lint
