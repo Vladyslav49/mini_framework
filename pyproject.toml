@@ -1,13 +1,14 @@
 [tool.poetry]
 name = "mini-framework"
 version = "0.0.1"
-description = "This is a mini framework that only supports CRUD operations. THIS ONLY FOR EDUCATIONAL PURPOSES."
+description = "This is a mini framework. THIS ONLY FOR EDUCATIONAL PURPOSES."
 authors = ["Vladyslav Timofeev <Timofeevvladyslav49@gmail.com>"]
 readme = "README.md"
 packages = [{include = "mini_framework", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+pytest = "^7.4.4"
 
 
 [tool.poetry.group.dev]

@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from http import HTTPStatus
 from typing import Any
 
 
@@ -7,7 +8,7 @@ class Response:
         self,
         content: Any,
         *,
-        status_code: int = 200,
+        status_code: int = HTTPStatus.OK,
         headers: Mapping[str, str] | None = None,
         media_type: str | None = None,
         charset: str = "utf-8",
@@ -27,7 +28,7 @@ class PlainTextResponse(Response):
         self,
         content: Any,
         *,
-        status_code: int = 200,
+        status_code: int = HTTPStatus.OK,
         headers: Mapping[str, str] | None = None,
         charset: str = "utf-8",
     ) -> None:
