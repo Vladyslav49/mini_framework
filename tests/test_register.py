@@ -1,10 +1,14 @@
-from http import HTTPMethod
+from http import HTTPMethod, HTTPStatus
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
-from mini_framework import Application, Router
-from mini_framework.managers.routes import UNHANDLED
+from mini_framework import Application, Response, Router
+from mini_framework.filters import BaseFilter
+from mini_framework.middlewares.base import BaseMiddleware, CallNext
+from mini_framework.responses import PlainTextResponse
+from mini_framework.routes.manager import UNHANDLED
 
 
 def test_application_parent_router(app: Application) -> None:
@@ -146,17 +150,17 @@ def test_multiple_routers_propagation(app: Application) -> None:
     router3 = Router()
     mocked_filter = Mock(return_value=False)
 
-    router1.get("/")(lambda: "first")
-    router2.get("/")(lambda: "second")
-    router3.get("/", mocked_filter)(lambda: "third")
+    router1.get("/")(lambda: PlainTextResponse("first"))
+    router2.get("/")(lambda: PlainTextResponse("second"))
+    router3.get("/", mocked_filter)(lambda: PlainTextResponse("third"))
 
     app.include_router(router1)
     app.include_router(router2)
     app.include_router(router3)
 
-    result, _ = app.propagate("/", method=HTTPMethod.GET)
+    response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert result == "first"
+    assert response.render() == "first".encode()
     mocked_filter.assert_not_called()
 
 
@@ -181,15 +185,18 @@ def test_multiple_routers_with_filters_propagation(
     mocked_filter1 = Mock(return_value=filter1_return_value)
     mocked_filter2 = Mock(return_value=filter2_return_value)
 
-    router1.get("/", mocked_filter1)(lambda: "first")
-    router2.get("/", mocked_filter2)(lambda: "second")
+    router1.get("/", mocked_filter1)(lambda: PlainTextResponse("first"))
+    router2.get("/", mocked_filter2)(lambda: PlainTextResponse("second"))
 
     app.include_router(router1)
     app.include_router(router2)
 
-    result, _ = app.propagate("/", method=HTTPMethod.GET)
+    response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert result == expected_result
+    if expected_result is UNHANDLED:
+        assert response is UNHANDLED
+    else:
+        assert response.render() == expected_result.encode()
 
     if filter1_return_value and filter2_return_value:
         mocked_filter1.assert_called_once()
@@ -206,15 +213,15 @@ def test_multiple_routers_with_filters_and_router_without_filters_propagation(
     router1 = Router()
     router2 = Router()
 
-    router1.get("/", lambda: False)(lambda: "first")
-    router2.get("/")(lambda: "second")
+    router1.get("/", lambda: False)(lambda: PlainTextResponse("first"))
+    router2.get("/")(lambda: PlainTextResponse("second"))
 
     app.include_router(router1)
     app.include_router(router2)
 
-    result, _ = app.propagate("/", method=HTTPMethod.GET)
+    response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert result == "second"
+    assert response.render() == "second".encode()
 
 
 def test_multiple_routers_and_filters_not_handled_propagation(
@@ -226,22 +233,26 @@ def test_multiple_routers_and_filters_not_handled_propagation(
     mocked_filter_for_router1 = Mock(return_value=False)
     mocked_filter_for_router2 = Mock(return_value=False)
 
-    router1.get("/", mocked_filter_for_router1)(lambda: "first")
-    router2.get("/", mocked_filter_for_router2)(lambda: "second")
+    router1.get("/", mocked_filter_for_router1)(
+        lambda: PlainTextResponse("first"),
+    )
+    router2.get("/", mocked_filter_for_router2)(
+        lambda: PlainTextResponse("second"),
+    )
 
     app.include_router(router1)
     app.include_router(router2)
 
-    result, _ = app.propagate("/", method=HTTPMethod.GET)
+    response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert result is UNHANDLED
+    assert response is UNHANDLED
     mocked_filter_for_router1.assert_called_once()
     mocked_filter_for_router2.assert_called_once()
 
 
 def test_register_route(app: Application) -> None:
     mocked_callback = Mock()
-    app.routes.register(mocked_callback, "/", method="GET")
+    app.route.register(mocked_callback, "/", method="GET")
 
     app.propagate("/", method=HTTPMethod.GET)
 
@@ -250,12 +261,12 @@ def test_register_route(app: Application) -> None:
 
 def test_register_via_decorator_and_get_result(app: Application) -> None:
     @app.get("/")
-    def index() -> str:
-        return "Hello, World!"
+    def index():
+        return PlainTextResponse("Hello, World!")
 
-    result, _ = app.propagate("/", method=HTTPMethod.GET)
+    response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert result == "Hello, World!"
+    assert response.render() == "Hello, World!".encode()
 
 
 def test_register_connect_method(app: Application) -> None:
@@ -340,6 +351,54 @@ def test_register_trace_method(app: Application) -> None:
 
 
 def test_not_registered_route(app: Application) -> None:
-    result, _ = app.propagate("/", method=HTTPMethod.GET)
+    response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert result is UNHANDLED
+    assert response is UNHANDLED
+
+
+def test_register_middleware(app: Application) -> None:
+    mocked_middleware = Mock()
+    app.route.middleware.register(mocked_middleware)
+
+    assert any(m is mocked_middleware for m in app.route.middleware)
+
+
+def test_register_middleware_via_decorator(app: Application) -> None:
+    @app.route.middleware
+    def middleware(call_next: CallNext, data: dict[str, Any]) -> None:
+        pass
+
+    assert any(m is middleware for m in app.route.middleware)
+
+
+def test_register_middleware_via_base_middleware(app: Application) -> None:
+    class Middleware(BaseMiddleware):
+        def __call__(self, call_next: CallNext, data: dict[str, Any]) -> Any:
+            return call_next(data)
+
+    middleware = Middleware()
+
+    app.route.middleware.register(middleware)
+
+    assert any(m is middleware for m in app.route.middleware)
+
+
+def test_register_filter_via_base_filter(app: Application) -> None:
+    class Filter(BaseFilter):
+        def __call__(self) -> bool:
+            return True
+
+    app.filter(Filter())
+
+
+def test_status_code_in_response(app: Application) -> None:
+    @app.get("/")
+    def index():
+        return PlainTextResponse(
+            "Hello, World!",
+            status_code=HTTPStatus.IM_A_TEAPOT,
+        )
+
+    response: Response = app.propagate("/", method=HTTPMethod.GET)
+
+    assert response.status_code == HTTPStatus.IM_A_TEAPOT

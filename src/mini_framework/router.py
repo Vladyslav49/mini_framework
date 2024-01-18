@@ -1,21 +1,22 @@
-from collections.abc import Iterator
-from http import HTTPMethod, HTTPStatus
-from typing import Callable, Optional
+from collections.abc import Callable, Iterator
+from http import HTTPMethod
+from typing import Optional
 
-from mini_framework.filters import BaseFilter
-from mini_framework.managers.routes import RoutesManager
-from mini_framework.route import Callback
+from mini_framework.middlewares.base import Middleware
+from mini_framework.routes.manager import RoutesManager
+from mini_framework.routes.route import Callback, Filter
 
 
 class Router:
-    __slots__ = ("_name", "_parent_router", "_sub_routers", "routes")
+    __slots__ = ("_name", "_parent_router", "_sub_routers", "route")
 
     def __init__(self, *, name: str | None = None) -> None:
         self._name = name or hex(id(self))
+
         self._parent_router: Router | None = None
         self._sub_routers: list[Router] = []
 
-        self.routes: RoutesManager = RoutesManager()
+        self.route = RoutesManager(self)
 
     @property
     def name(self) -> str:
@@ -77,131 +78,125 @@ class Router:
     def __repr__(self) -> str:
         return f"<{self}>"
 
-    def filter(self, *filters: BaseFilter) -> None:
-        self.routes.filter(*filters)
+    def outer_middleware(
+        self,
+        middleware: Middleware | None = None,
+    ) -> Callable[[Middleware], Middleware] | Middleware:
+        return self.route.outer_middleware(middleware)
+
+    def middleware(
+        self,
+        middleware: Middleware | None = None,
+    ) -> Callable[[Middleware], Middleware] | Middleware:
+        return self.route.middleware(middleware)
+
+    def filter(self, *filters: Filter) -> None:
+        self.route.filter(*filters)
 
     def connect(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.CONNECT,
-            status_code=status_code,
         )
 
     def delete(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.DELETE,
-            status_code=status_code,
         )
 
     def get(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.GET,
-            status_code=status_code,
         )
 
     def head(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.HEAD,
-            status_code=status_code,
         )
 
     def options(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.OPTIONS,
-            status_code=status_code,
         )
 
     def patch(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.PATCH,
-            status_code=status_code,
         )
 
     def post(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.POST,
-            status_code=status_code,
         )
 
     def put(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.PUT,
-            status_code=status_code,
         )
 
     def trace(
         self,
         path: str,
         /,
-        *filters: BaseFilter,
-        status_code: int = HTTPStatus.OK,
+        *filters: Filter,
     ) -> Callable[[Callback], Callback]:
-        return self.routes(
+        return self.route(
             path,
             *filters,
             method=HTTPMethod.TRACE,
-            status_code=status_code,
         )

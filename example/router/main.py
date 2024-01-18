@@ -1,12 +1,13 @@
 from mini_framework import Application, Router
+from mini_framework.responses import PlainTextResponse
 from .home import router as home_router
 
 router = Router()
 
 
 @router.get("/")
-def index() -> str:
-    return "Hello, World!"
+def index():
+    return PlainTextResponse("Hello, World!")
 
 
 def create_app() -> Application:

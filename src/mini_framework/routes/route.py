@@ -1,11 +1,13 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from http import HTTPStatus
+from functools import partial
 from typing import Any, TypeAlias
 
 from mini_framework.filters import BaseFilter
+from mini_framework.utils import prepare_kwargs
 
 Callback: TypeAlias = Callable[..., Any]
+Filter: TypeAlias = BaseFilter | Callable[..., dict[str, Any] | bool]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -13,24 +15,23 @@ class Route:
     callback: Callback
     path: str
     method: str
-    status_code: int = HTTPStatus.OK
-    filters: list[BaseFilter] = field(default_factory=list)
+    filters: list[Filter] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.path.startswith("/"):
             raise ValueError(f"Path {self.path!r} must start with '/'")
         if not self.path.endswith("/"):
             raise ValueError(f"Path {self.path!r} must end with '/'")
-        for filter in self.filters:
-            if not isinstance(filter, BaseFilter):
-                raise TypeError(
-                    f"Filter {filter!r} must be an instance of BaseFilter",
-                )
 
-    def check(self) -> bool:
+    def check(self, data: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
         if not self.filters:
-            return True
+            return True, data
         for filter in self.filters:
-            if not filter():
-                return False
-        return True
+            if kwargs := prepare_kwargs(filter, data):
+                filter = partial(filter, **kwargs)
+            check = filter()
+            if not check:
+                return False, data
+            if isinstance(check, dict):
+                data.update(check)
+        return True, data

@@ -2,23 +2,32 @@ from collections.abc import Iterator
 from http import HTTPStatus
 from typing import Any
 
-from mini_framework.managers.routes import UNHANDLED
 from mini_framework.responses import PlainTextResponse, Response
 from mini_framework.router import Router
+from mini_framework.routes.manager import UNHANDLED
 from mini_framework.utils import get_status_code_and_phrase, prepare_headers
 
 
 class Application(Router):
-    __slots__ = ("_routes", "_default_response_class")
+    __slots__ = ("_workflow_data",)
 
     def __init__(
         self,
         *,
         name: str = "Application",
-        default_response_class: type[Response] = PlainTextResponse,
+        **kwargs: Any,
     ) -> None:
         super().__init__(name=name)
-        self._default_response_class = default_response_class
+        self._workflow_data: dict[str, Any] = kwargs
+
+    def __getitem__(self, key: str) -> Any:
+        return self._workflow_data[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._workflow_data[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self._workflow_data[key]
 
     @property
     def parent_router(self) -> Router | None:
@@ -38,11 +47,13 @@ class Application(Router):
 
         method: str = environ["REQUEST_METHOD"]
 
-        response, status_code = self.propagate(path, method=method)
+        data: dict[str, Any] = {}
+
+        response: Response = self.propagate(path, method=method, data=data)
 
         if response is UNHANDLED:
             response = PlainTextResponse(
-                content="Not Found",
+                content=HTTPStatus.NOT_FOUND.phrase,
                 status_code=HTTPStatus.NOT_FOUND,
             )
             status = get_status_code_and_phrase(response.status_code)
@@ -50,14 +61,6 @@ class Application(Router):
             headers = prepare_headers(response, content=content)
             start_response(status, headers)
             return [content]
-
-        assert status_code is not None
-
-        if not isinstance(response, Response):
-            response = self._default_response_class(
-                content=response,
-                status_code=status_code,
-            )
 
         status = get_status_code_and_phrase(response.status_code)
         content = response.render()
@@ -71,24 +74,27 @@ class Application(Router):
         /,
         *,
         method: str,
-    ) -> tuple[Any, int | None]:
-        for router in self._get_routers(path, method=method):
-            for head_router in router.chain_head:
-                if not head_router.routes.check_root_filters():
-                    return UNHANDLED, None
+        data: dict[str, Any] | None = None,
+    ) -> Any:
+        if data is None:
+            data = {}
 
+        data.update(self._workflow_data)
+        data.update(path=path, method=method)
+
+        for router in self._get_routers(path, method=method):
             for tail_router in router.chain_tail:
-                response, status_code = tail_router.routes.trigger(
-                    path,
-                    method=method,
+                response = self.route.wrap_outer_middleware(
+                    tail_router.route.trigger,
+                    data,
                 )
                 if response is not UNHANDLED:
-                    return response, status_code
+                    return response
 
-        return UNHANDLED, None
+        return UNHANDLED
 
     def _get_routers(self, path: str, /, *, method: str) -> Iterator[Router]:
         for router in self.chain_tail:
-            for route in router.routes:
+            for route in router.route:
                 if route.path == path and route.method == method:
                     yield router

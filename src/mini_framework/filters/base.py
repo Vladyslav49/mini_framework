@@ -1,11 +1,12 @@
-from typing import Callable, Protocol, runtime_checkable, TYPE_CHECKING
+from abc import ABC, abstractmethod
+from typing import Any, Callable, TYPE_CHECKING
 
 
-@runtime_checkable
-class BaseFilter(Protocol):
+class BaseFilter(ABC):
     if TYPE_CHECKING:
-        __call__: Callable[[], bool]
+        __call__: Callable[..., dict[str, Any] | bool]
     else:
 
-        def __call__(self) -> bool:
-            ...
+        @abstractmethod
+        def __call__(self, **kwargs: Any) -> dict[str, Any] | bool:
+            raise NotImplementedError

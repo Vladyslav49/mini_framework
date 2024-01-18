@@ -3,7 +3,7 @@ from http import HTTPMethod
 import pytest
 
 from mini_framework import Application, Router
-from mini_framework.route import Route
+from mini_framework.routes.route import Route
 
 
 def test_create_application() -> None:

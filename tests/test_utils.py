@@ -3,7 +3,11 @@ from http import HTTPStatus
 import pytest
 
 from mini_framework.responses import PlainTextResponse
-from mini_framework.utils import get_status_code_and_phrase, prepare_headers
+from mini_framework.utils import (
+    get_status_code_and_phrase,
+    prepare_headers,
+    prepare_kwargs,
+)
 
 
 @pytest.mark.parametrize("status", list(HTTPStatus))
@@ -25,3 +29,47 @@ def test_prepare_headers() -> None:
     assert headers[0][0] == "Content-Type"
     assert "text/plain" in headers[0][1]
     assert headers[1] == ("Content-Length", str(len(content.encode())))
+
+
+def test_prepare_kwargs_no_parameters() -> None:
+    kwargs = {"a": 1, "b": 2}
+
+    def callback() -> None:
+        pass
+
+    prepared_kwargs = prepare_kwargs(callback, kwargs)
+
+    assert prepared_kwargs == {}
+
+
+def test_prepare_kwargs_with_one_parameter() -> None:
+    kwargs = {"a": 1, "b": 2}
+
+    def callback(a: int) -> None:
+        pass
+
+    prepared_kwargs = prepare_kwargs(callback, kwargs)
+
+    assert prepared_kwargs == {"a": 1}
+
+
+def test_prepare_kwargs_with_unknown_parameter() -> None:
+    kwargs = {"a": 1, "b": 2}
+
+    def callback(c: int) -> None:
+        pass
+
+    prepared_kwargs = prepare_kwargs(callback, kwargs)
+
+    assert prepared_kwargs == {}
+
+
+def test_prepare_kwargs_with_kwargs_parameter() -> None:
+    kwargs = {"a": 1, "b": 2}
+
+    def callback(**kwargs) -> None:
+        pass
+
+    prepared_kwargs = prepare_kwargs(callback, kwargs)
+
+    assert prepared_kwargs == kwargs

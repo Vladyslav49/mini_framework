@@ -2,6 +2,7 @@ from http import HTTPMethod
 from unittest.mock import Mock
 
 from mini_framework import Application, Router
+from mini_framework.routes.route import Route
 
 
 def test_successful_route_resolution(app: Application) -> None:
@@ -108,3 +109,16 @@ def test_router_filters_affect_to_sub_router(app: Application) -> None:
     app.propagate("/", method=HTTPMethod.GET)
 
     mocked_callback.assert_not_called()
+
+
+def test_filter_dependency_injection(app: Application) -> None:
+    mocked_callback = Mock()
+
+    def filter_path(route: Route) -> bool:
+        return route.path == "/"
+
+    app.get("/", filter_path)(mocked_callback)
+
+    app.propagate("/", method=HTTPMethod.GET)
+
+    mocked_callback.assert_called_once()

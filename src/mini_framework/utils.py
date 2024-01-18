@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import inspect
 from http.client import responses
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mini_framework import Response
+    from mini_framework.responses import Response
+    from mini_framework.routes.route import Callback
 
 
 def get_status_code_and_phrase(status_code: int) -> str:
@@ -25,3 +27,15 @@ def prepare_headers(
         ("Content-Length", str(len(content))),
     ] + list(response.headers.items())
     return headers
+
+
+def prepare_kwargs(
+    callback: Callback,
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    """Prepare kwargs for a given callback."""
+    spec = inspect.getfullargspec(callback)
+    if spec.varkw is not None:
+        return kwargs
+    parameters = {*spec.args, *spec.kwonlyargs}
+    return {key: kwargs[key] for key in parameters if key in kwargs}
