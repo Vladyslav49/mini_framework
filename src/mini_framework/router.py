@@ -2,13 +2,21 @@ from collections.abc import Callable, Iterator
 from http import HTTPMethod
 from typing import Optional
 
+from mini_framework.errors.manager import ErrorsManager
 from mini_framework.middlewares.base import Middleware
 from mini_framework.routes.manager import RoutesManager
 from mini_framework.routes.route import Callback, Filter
 
 
 class Router:
-    __slots__ = ("_name", "_parent_router", "_sub_routers", "route")
+    __slots__ = (
+        "_name",
+        "_parent_router",
+        "_sub_routers",
+        "route",
+        "errors",
+        "error",
+    )
 
     def __init__(self, *, name: str | None = None) -> None:
         self._name = name or hex(id(self))
@@ -17,6 +25,7 @@ class Router:
         self._sub_routers: list[Router] = []
 
         self.route = RoutesManager(self)
+        self.errors = self.error = ErrorsManager(self)
 
     @property
     def name(self) -> str:

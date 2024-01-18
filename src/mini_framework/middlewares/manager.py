@@ -28,9 +28,6 @@ class MiddlewareManager:
         self._middlewares.append(middleware)
         return middleware
 
-    def unregister(self, middleware: Middleware) -> None:
-        self._middlewares.remove(middleware)
-
     @staticmethod
     def wrap_middlewares(
         middlewares: Iterable[Middleware],

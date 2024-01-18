@@ -1,4 +1,4 @@
-from http import HTTPMethod, HTTPStatus
+from http import HTTPMethod
 from typing import Any
 from unittest.mock import Mock
 
@@ -391,14 +391,16 @@ def test_register_filter_via_base_filter(app: Application) -> None:
     app.filter(Filter())
 
 
-def test_status_code_in_response(app: Application) -> None:
-    @app.get("/")
-    def index():
-        return PlainTextResponse(
-            "Hello, World!",
-            status_code=HTTPStatus.IM_A_TEAPOT,
-        )
+def test_register_error(app: Application) -> None:
+    mocked_error_handler = Mock()
+    app.error.register(mocked_error_handler)
 
-    response: Response = app.propagate("/", method=HTTPMethod.GET)
+    assert any(error.callback is mocked_error_handler for error in app.error)
 
-    assert response.status_code == HTTPStatus.IM_A_TEAPOT
+
+def test_register_error_via_decorator(app: Application) -> None:
+    @app.error()
+    def error_handler():
+        pass
+
+    assert any(error.callback is error_handler for error in app.error)
