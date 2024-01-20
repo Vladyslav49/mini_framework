@@ -39,11 +39,11 @@ class Router:
     def parent_router(self, router: "Router") -> None:
         if not isinstance(router, Router):
             raise ValueError(
-                f"router should be instance of Router not {type(router).__name__!r}",  # noqa: E501
+                f"router should be instance of Router not {type(router).__name__!r}"  # noqa: E501
             )
         if self._parent_router:
             raise RuntimeError(
-                f"Router is already attached to {self._parent_router!r}",
+                f"Router is already attached to {self._parent_router!r}"
             )
         if self is router:
             raise RuntimeError("Self-referencing routers is not allowed")
@@ -52,7 +52,7 @@ class Router:
         while parent is not None:
             if parent is self:
                 raise RuntimeError(
-                    "Circular referencing of Router is not allowed",
+                    "Circular referencing of Router is not allowed"
                 )
 
             parent = parent.parent_router
@@ -63,7 +63,7 @@ class Router:
     def include_router(self, router: "Router") -> "Router":
         if not isinstance(router, Router):
             raise ValueError(
-                f"router should be instance of Router not {type(router).__name__!r}",  # noqa: E501
+                f"router should be instance of Router not {type(router).__name__!r}"  # noqa: E501
             )
         router.parent_router = self
         return router
@@ -88,14 +88,12 @@ class Router:
         return f"<{self}>"
 
     def outer_middleware(
-        self,
-        middleware: Middleware | None = None,
+        self, middleware: Middleware | None = None
     ) -> Callable[[Middleware], Middleware] | Middleware:
         return self.route.outer_middleware(middleware)
 
     def middleware(
-        self,
-        middleware: Middleware | None = None,
+        self, middleware: Middleware | None = None
     ) -> Callable[[Middleware], Middleware] | Middleware:
         return self.route.middleware(middleware)
 
@@ -103,109 +101,46 @@ class Router:
         self.route.filter(*filters)
 
     def connect(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.CONNECT,
-        )
+        return self.route(path, *filters, method=HTTPMethod.CONNECT)
 
     def delete(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.DELETE,
-        )
+        return self.route(path, *filters, method=HTTPMethod.DELETE)
 
     def get(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.GET,
-        )
+        return self.route(path, *filters, method=HTTPMethod.GET)
 
     def head(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.HEAD,
-        )
+        return self.route(path, *filters, method=HTTPMethod.HEAD)
 
     def options(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.OPTIONS,
-        )
+        return self.route(path, *filters, method=HTTPMethod.OPTIONS)
 
     def patch(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.PATCH,
-        )
+        return self.route(path, *filters, method=HTTPMethod.PATCH)
 
     def post(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.POST,
-        )
+        return self.route(path, *filters, method=HTTPMethod.POST)
 
     def put(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.PUT,
-        )
+        return self.route(path, *filters, method=HTTPMethod.PUT)
 
     def trace(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
+        self, path: str, /, *filters: Filter
     ) -> Callable[[Callback], Callback]:
-        return self.route(
-            path,
-            *filters,
-            method=HTTPMethod.TRACE,
-        )
+        return self.route(path, *filters, method=HTTPMethod.TRACE)

@@ -16,22 +16,17 @@ def get_status_code_and_phrase(status_code: int) -> str:
     return f"{status_code} {responses[status_code]}"
 
 
-def prepare_headers(
-    response: Response,
-    *,
-    content: Any,
-) -> list[tuple[str, str]]:
+def prepare_headers(response: Response) -> dict[str, str]:
     """Prepare headers for a given response."""
-    headers = [
-        ("Content-Type", f"{response.media_type}; charset={response.charset}"),
-        ("Content-Length", str(len(content))),
-    ] + list(response.headers.items())
-    return headers
+    headers = {
+        "Content-Type": f"{response.media_type}; charset={response.charset}",
+        "Content-Length": str(len(response.body)),
+    }
+    return headers | dict(response.headers)
 
 
 def prepare_kwargs(
-    callback: Callback,
-    kwargs: dict[str, Any],
+    callback: Callback, kwargs: dict[str, Any]
 ) -> dict[str, Any]:
     """Prepare kwargs for a given callback."""
     spec = inspect.getfullargspec(callback)

@@ -4,6 +4,9 @@ from collections.abc import Callable, Iterator
 from typing import Any, TYPE_CHECKING
 
 from mini_framework.errors.error import Error
+from mini_framework.errors.handlers import http_exception_handler
+from mini_framework.exceptions import HTTPException
+from mini_framework.filters.exception import ExceptionTypeFilter
 from mini_framework.middlewares.base import Middleware
 from mini_framework.middlewares.manager import MiddlewareManager
 from mini_framework.routes.manager import SkipRoute, UNHANDLED
@@ -20,6 +23,7 @@ class ErrorsManager:
         "outer_middleware",
         "middleware",
         "_error",
+        "_http_exception_error",
     )
 
     def __init__(self, router: Router) -> None:
@@ -31,18 +35,19 @@ class ErrorsManager:
 
         # This error is used to check root filters
         self._error = Error(callback=lambda: True)
+        self._http_exception_error = Error(
+            callback=http_exception_handler,
+            filters=[ExceptionTypeFilter(HTTPException)],
+        )
 
     def __iter__(self) -> Iterator[Error]:
         return iter(self._errors)
 
     def wrap_outer_middleware(
-        self,
-        callback: Any,
-        data: dict[str, Any],
+        self, callback: Any, data: dict[str, Any]
     ) -> Any:
         wrapped_outer = self.outer_middleware.wrap_middlewares(
-            self.outer_middleware,
-            callback,
+            self.outer_middleware, callback
         )
         return wrapped_outer(data)
 
@@ -50,8 +55,7 @@ class ErrorsManager:
         self._error.filters.extend(filters)
 
     def check_root_filters(
-        self,
-        data: dict[str, Any],
+        self, data: dict[str, Any]
     ) -> tuple[bool, dict[str, Any]]:
         return self._error.check(data)
 
@@ -62,7 +66,9 @@ class ErrorsManager:
                 return UNHANDLED
             kwargs.update(data)
 
-        for error in self:
+        errors = self._errors + [self._http_exception_error]
+
+        for error in errors:
             kwargs["error"] = error
             result, data = error.check(kwargs)
 
@@ -92,16 +98,6 @@ class ErrorsManager:
 
         return wrapper
 
-    def register(
-        self,
-        callback: Callback,
-        /,
-        *filters: Filter,
-    ) -> Callback:
-        self._errors.append(
-            Error(
-                callback=callback,
-                filters=list(filters),
-            ),
-        )
+    def register(self, callback: Callback, /, *filters: Filter) -> Callback:
+        self._errors.append(Error(callback=callback, filters=list(filters)))
         return callback

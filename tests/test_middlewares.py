@@ -78,7 +78,7 @@ def test_get_response_in_middleware(app: Application) -> None:
         response: Response = call_next(data)
         assert isinstance(response, Response)
         assert response.status_code == 200
-        assert response.content == "Hello, World!"
+        assert response.body == "Hello, World!".encode()
 
     @app.get("/")
     def index():

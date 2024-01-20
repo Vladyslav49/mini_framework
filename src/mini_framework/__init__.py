@@ -1,8 +1,4 @@
-__all__ = (
-    "Application",
-    "Response",
-    "Router",
-)
+__all__ = ("Application", "Response", "Router")
 
 from .app import Application
 from .responses import Response

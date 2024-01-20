@@ -20,15 +20,27 @@ def test_get_status_code_and_phrase_with_invalid_status_code() -> None:
         get_status_code_and_phrase(999)
 
 
-def test_prepare_headers() -> None:
+def test_prepare_headers_with_response_without_headers() -> None:
     content = "Hello, World!"
-    response = PlainTextResponse(content=content)
+    response = PlainTextResponse(content)
 
-    headers = prepare_headers(response, content=response.render())
+    headers = prepare_headers(response)
 
-    assert headers[0][0] == "Content-Type"
-    assert "text/plain" in headers[0][1]
-    assert headers[1] == ("Content-Length", str(len(content.encode())))
+    assert len(headers) == 2
+    assert "text/plain" in headers["Content-Type"]
+    assert headers["Content-Length"] == str(len(content))
+
+
+def test_prepare_headers_with_response_with_headers() -> None:
+    content = "Hello, World!"
+    response = PlainTextResponse(content, headers={"X-Header": "Value"})
+
+    headers = prepare_headers(response)
+
+    assert len(headers) == 3
+    assert "text/plain" in headers["Content-Type"]
+    assert headers["Content-Length"] == str(len(content))
+    assert headers["X-Header"] == "Value"
 
 
 def test_prepare_kwargs_no_parameters() -> None:

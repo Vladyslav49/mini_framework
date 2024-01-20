@@ -25,11 +25,11 @@ def test_error(app: Application) -> None:
 
     @app.error()
     def error(exception: Exception):
-        return PlainTextResponse(content="Error")
+        return PlainTextResponse("Error")
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "Error".encode()
+    assert response.body == "Error".encode()
 
 
 def test_multiple_errors(app: Application) -> None:
@@ -39,7 +39,7 @@ def test_multiple_errors(app: Application) -> None:
 
     @app.error()
     def error(exception: Exception):
-        return PlainTextResponse(content="Error")
+        return PlainTextResponse("Error")
 
     @app.error()
     def error2(exception: Exception):
@@ -47,7 +47,7 @@ def test_multiple_errors(app: Application) -> None:
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "Error".encode()
+    assert response.body == "Error".encode()
 
 
 def test_error_type(app: Application) -> None:
@@ -58,7 +58,7 @@ def test_error_type(app: Application) -> None:
     @app.error()
     def error(exception: Exception):
         assert isinstance(exception, IndexError)
-        return PlainTextResponse(content="Error")
+        return PlainTextResponse("Error")
 
     app.propagate("/", method=HTTPMethod.GET)
 
@@ -83,11 +83,11 @@ def test_handle_error_by_type(app: Application) -> None:
 
     @app.error(ExceptionTypeFilter(IndexError))
     def error(exception: Exception):
-        return PlainTextResponse(content="Error")
+        return PlainTextResponse("Error")
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "Error".encode()
+    assert response.body == "Error".encode()
 
 
 def test_error_with_root_filter(app: Application) -> None:
@@ -120,11 +120,11 @@ def test_error_middleware(app: Application) -> None:
     @app.error()
     def error(exception: Exception, middleware_data: str):
         assert middleware_data == "middleware_data"
-        return PlainTextResponse(content="Error")
+        return PlainTextResponse("Error")
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "Error".encode()
+    assert response.body == "Error".encode()
 
 
 def test_error_outer_middleware(app: Application) -> None:
@@ -142,11 +142,11 @@ def test_error_outer_middleware(app: Application) -> None:
     @app.error()
     def error(exception: Exception, outer_middleware_data: str):
         assert outer_middleware_data == "outer_middleware_data"
-        return PlainTextResponse(content="Error")
+        return PlainTextResponse("Error")
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "Error".encode()
+    assert response.body == "Error".encode()
 
 
 def test_error_with_filter(app: Application) -> None:
@@ -156,11 +156,11 @@ def test_error_with_filter(app: Application) -> None:
 
     @app.error(lambda: True)
     def error(exception: Exception):
-        return PlainTextResponse(content="Error")
+        return PlainTextResponse("Error")
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "Error".encode()
+    assert response.body == "Error".encode()
 
 
 def test_error_http_exception_status_code_filter(app: Application) -> None:
@@ -169,13 +169,13 @@ def test_error_http_exception_status_code_filter(app: Application) -> None:
         raise HTTPException(status_code=HTTPStatus.IM_A_TEAPOT)
 
     @app.error(HTTPExceptionStatusCodeFilter(HTTPStatus.IM_A_TEAPOT))
-    def error(exception: Exception):
-        return True
+    def error(exception: HTTPException):
+        return PlainTextResponse("Error", status_code=exception.status_code)
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.render() == HTTPStatus.IM_A_TEAPOT.phrase.encode()
+    assert response.body == "Error".encode()
 
 
 def test_error_http_exception_status_code_filter_with_wrong_status_code(
@@ -186,13 +186,13 @@ def test_error_http_exception_status_code_filter_with_wrong_status_code(
         raise HTTPException(status_code=HTTPStatus.IM_A_TEAPOT)
 
     @app.error(HTTPExceptionStatusCodeFilter(HTTPStatus.OK))
-    def error(exception: Exception):
+    def error():
         assert False  # noqa: B011
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.render() == HTTPStatus.IM_A_TEAPOT.phrase.encode()
+    assert response.body == HTTPStatus.IM_A_TEAPOT.phrase.encode()
 
 
 def test_skip_route(app: Application) -> None:
@@ -201,7 +201,7 @@ def test_skip_route(app: Application) -> None:
         raise Exception("Error in index")
 
     @app.error()
-    def error(exception: Exception):
+    def error():
         raise SkipRoute
 
     with pytest.raises(Exception, match="Error in index"):
@@ -224,7 +224,7 @@ def test_http_exception(app: Application) -> None:
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.render() == HTTPStatus.IM_A_TEAPOT.phrase.encode()
+    assert response.body == HTTPStatus.IM_A_TEAPOT.phrase.encode()
 
 
 def test_http_exception_with_detail(app: Application) -> None:
@@ -238,19 +238,18 @@ def test_http_exception_with_detail(app: Application) -> None:
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.render() == "I'm a teapot with detail".encode()
+    assert response.body == "I'm a teapot with detail".encode()
 
 
 def test_http_exception_with_headers(app: Application) -> None:
     @app.get("/")
     def index():
         raise HTTPException(
-            status_code=HTTPStatus.IM_A_TEAPOT,
-            headers={"X-Header": "Value"},
+            status_code=HTTPStatus.IM_A_TEAPOT, headers={"X-Header": "Value"}
         )
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.render() == HTTPStatus.IM_A_TEAPOT.phrase.encode()
+    assert response.body == HTTPStatus.IM_A_TEAPOT.phrase.encode()
     assert response.headers["X-Header"] == "Value"

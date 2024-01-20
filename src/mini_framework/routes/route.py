@@ -25,18 +25,18 @@ class Route:
             raise ValueError(f"Path {self.path!r} must end with '/'")
         if self.method not in tuple(HTTPMethod):
             raise ValueError(
-                f"Method {self.method!r} is not valid HTTP method",
+                f"Method {self.method!r} is not valid HTTP method"
             )
 
     def check(self, data: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
         if not self.filters:
-            return True, data
+            return (True, data)
         for filter in self.filters:
             if kwargs := prepare_kwargs(filter, data):
                 filter = partial(filter, **kwargs)
             check = filter()
             if not check:
-                return False, data
+                return (False, data)
             if isinstance(check, dict):
                 data.update(check)
-        return True, data
+        return (True, data)

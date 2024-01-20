@@ -37,22 +37,17 @@ class RoutesManager:
 
         # This route is used to check root filters
         self._route = Route(
-            callback=lambda: True,
-            path="/",
-            method=HTTPMethod.GET,
+            callback=lambda: True, path="/", method=HTTPMethod.GET
         )
 
     def __iter__(self) -> Iterator[Route]:
         return iter(self._routes)
 
     def wrap_outer_middleware(
-        self,
-        callback: Any,
-        data: dict[str, Any],
+        self, callback: Any, data: dict[str, Any]
     ) -> Any:
         wrapped_outer = self.outer_middleware.wrap_middlewares(
-            self.outer_middleware,
-            callback,
+            self.outer_middleware, callback
         )
         return wrapped_outer(data)
 
@@ -60,17 +55,11 @@ class RoutesManager:
         self._route.filters.extend(filters)
 
     def check_root_filters(
-        self,
-        data: dict[str, Any],
+        self, data: dict[str, Any]
     ) -> tuple[bool, dict[str, Any]]:
         return self._route.check(data)
 
-    def trigger(
-        self,
-        path: str,
-        method: str,
-        **kwargs: Any,
-    ) -> Any:
+    def trigger(self, path: str, method: str, **kwargs: Any) -> Any:
         for head_router in reversed(tuple(self._router.chain_head)):
             result, data = head_router.route.check_root_filters(kwargs)
             if not result:
@@ -102,30 +91,16 @@ class RoutesManager:
         return middlewares
 
     def __call__(
-        self,
-        path: str,
-        /,
-        *filters: Filter,
-        method: str,
+        self, path: str, /, *filters: Filter, method: str
     ) -> Callable[[Callback], Callback]:
         def wrapper(callback: Callback) -> Callback:
-            self.register(
-                callback,
-                path,
-                *filters,
-                method=method,
-            )
+            self.register(callback, path, *filters, method=method)
             return callback
 
         return wrapper
 
     def register(
-        self,
-        callback: Callback,
-        path: str,
-        /,
-        *filters: Filter,
-        method: str,
+        self, callback: Callback, path: str, /, *filters: Filter, method: str
     ) -> Callback:
         self._routes.append(
             Route(
@@ -133,6 +108,6 @@ class RoutesManager:
                 path=path,
                 method=method,
                 filters=list(filters),
-            ),
+            )
         )
         return callback

@@ -30,9 +30,22 @@ def test_create_route() -> None:
     Route(callback=lambda: None, path="/", method=HTTPMethod.GET)
 
 
-def test_create_route_with_wrong_path() -> None:
+def test_create_route_with_path_without_starting_slash() -> None:
     with pytest.raises(
-        ValueError,
-        match="Path 'wrong_path' must start with '/'",
+        ValueError, match="Path 'wrong_path' must start with '/'"
     ):
         Route(callback=lambda: None, path="wrong_path", method=HTTPMethod.GET)
+
+
+def test_create_route_with_path_without_ending_slash() -> None:
+    with pytest.raises(
+        ValueError, match="Path '/wrong_path' must end with '/'"
+    ):
+        Route(callback=lambda: None, path="/wrong_path", method=HTTPMethod.GET)
+
+
+def test_create_route_with_wrong_method() -> None:
+    with pytest.raises(
+        ValueError, match="Method 'WRONG' is not valid HTTP method"
+    ):
+        Route(callback=lambda: None, path="/", method="WRONG")

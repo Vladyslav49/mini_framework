@@ -37,8 +37,7 @@ def test_include_router_self_reference() -> None:
     router = Router()
 
     with pytest.raises(
-        RuntimeError,
-        match="Self-referencing routers is not allowed",
+        RuntimeError, match="Self-referencing routers is not allowed"
     ):
         router.include_router(router)
 
@@ -50,16 +49,14 @@ def test_include_router_circular_reference() -> None:
     router1.include_router(router2)
 
     with pytest.raises(
-        RuntimeError,
-        match="Circular referencing of Router is not allowed",
+        RuntimeError, match="Circular referencing of Router is not allowed"
     ):
         router2.include_router(router1)
 
 
 def test_include_router_not_router(app: Application) -> None:
     with pytest.raises(
-        ValueError,
-        match="router should be instance of Router not 'str'",
+        ValueError, match="router should be instance of Router not 'str'"
     ):
         app.include_router("some")  # type: ignore[arg-type]
 
@@ -71,8 +68,7 @@ def test_router_is_already_attached(app: Application) -> None:
     router1.include_router(router2)
 
     with pytest.raises(
-        RuntimeError,
-        match=f"Router is already attached to {router1!r}",
+        RuntimeError, match=f"Router is already attached to {router1!r}"
     ):
         app.include_router(router2)
 
@@ -127,9 +123,7 @@ def test_get_routers(app: Application) -> None:
     ],
 )
 def test_get_routers_not_found(
-    app: Application,
-    path: str,
-    method: str,
+    app: Application, path: str, method: str
 ) -> None:
     router1 = Router()
     router2 = Router()
@@ -160,7 +154,7 @@ def test_multiple_routers_propagation(app: Application) -> None:
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "first".encode()
+    assert response.body == "first".encode()
     mocked_filter.assert_not_called()
 
 
@@ -196,7 +190,7 @@ def test_multiple_routers_with_filters_propagation(
     if expected_result is UNHANDLED:
         assert response is UNHANDLED
     else:
-        assert response.render() == expected_result.encode()
+        assert response.body == expected_result.encode()
 
     if filter1_return_value and filter2_return_value:
         mocked_filter1.assert_called_once()
@@ -221,7 +215,7 @@ def test_multiple_routers_with_filters_and_router_without_filters_propagation(
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "second".encode()
+    assert response.body == "second".encode()
 
 
 def test_multiple_routers_and_filters_not_handled_propagation(
@@ -234,10 +228,10 @@ def test_multiple_routers_and_filters_not_handled_propagation(
     mocked_filter_for_router2 = Mock(return_value=False)
 
     router1.get("/", mocked_filter_for_router1)(
-        lambda: PlainTextResponse("first"),
+        lambda: PlainTextResponse("first")
     )
     router2.get("/", mocked_filter_for_router2)(
-        lambda: PlainTextResponse("second"),
+        lambda: PlainTextResponse("second")
     )
 
     app.include_router(router1)
@@ -266,7 +260,7 @@ def test_register_via_decorator_and_get_result(app: Application) -> None:
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)
 
-    assert response.render() == "Hello, World!".encode()
+    assert response.body == "Hello, World!".encode()
 
 
 def test_register_connect_method(app: Application) -> None:

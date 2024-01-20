@@ -8,8 +8,7 @@ def test_status_code_in_response(app: Application) -> None:
     @app.get("/")
     def index():
         return PlainTextResponse(
-            "Hello, World!",
-            status_code=HTTPStatus.IM_A_TEAPOT,
+            "Hello, World!", status_code=HTTPStatus.IM_A_TEAPOT
         )
 
     response: Response = app.propagate("/", method=HTTPMethod.GET)

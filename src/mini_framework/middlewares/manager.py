@@ -17,8 +17,7 @@ class MiddlewareManager:
         return iter(self._middlewares)
 
     def __call__(
-        self,
-        middleware: Middleware | None = None,
+        self, middleware: Middleware | None = None
     ) -> Callable[[Middleware], Middleware] | Middleware:
         if middleware is None:
             return self.register
@@ -30,8 +29,7 @@ class MiddlewareManager:
 
     @staticmethod
     def wrap_middlewares(
-        middlewares: Iterable[Middleware],
-        callback: Callback,
+        middlewares: Iterable[Middleware], callback: Callback
     ) -> CallNext:
         @wraps(callback)
         def callback_wrapper(kwargs: dict[str, Any]) -> Any:
