@@ -19,7 +19,7 @@ class ErrorsMiddleware(BaseMiddleware):
         except SkipRoute:
             raise
         except Exception as exception:
-            response: Response = self._app.propagate_error(exception, data)
+            response: Response = self._app.propagate_error(exception, **data)
             if response is not UNHANDLED:
                 return response
             raise

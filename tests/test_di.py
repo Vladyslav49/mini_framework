@@ -1,5 +1,6 @@
 from http import HTTPMethod
 from typing import Any
+from unittest.mock import Mock
 
 from mini_framework import Application
 from mini_framework.middlewares.base import CallNext
@@ -15,7 +16,11 @@ def test_di_via_middleware(app: Application) -> None:
     def index(some_data: str) -> None:
         assert some_data == "some_data"
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
 
 def test_di_via_outer_middleware(app: Application) -> None:
@@ -28,7 +33,11 @@ def test_di_via_outer_middleware(app: Application) -> None:
     def index(some_data: str) -> None:
         assert some_data == "some_data"
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
 
 def test_di_via_application_kwargs() -> None:
@@ -38,7 +47,11 @@ def test_di_via_application_kwargs() -> None:
     def index(some_data: str) -> None:
         assert some_data == "some_data"
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
 
 def test_di_via_application_setitem(app: Application) -> None:
@@ -48,7 +61,11 @@ def test_di_via_application_setitem(app: Application) -> None:
     def index(some_data: str) -> None:
         assert some_data == "some_data"
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
 
 def test_di_via_filter(app: Application) -> None:
@@ -59,4 +76,8 @@ def test_di_via_filter(app: Application) -> None:
     def index(value: int) -> None:
         assert value == 0
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)

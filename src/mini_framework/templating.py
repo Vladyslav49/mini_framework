@@ -4,6 +4,7 @@ from typing import Optional
 
 try:
     import jinja2
+    from jinja2 import Environment, Template
 except ImportError:
     jinja2 = None
 
@@ -15,7 +16,7 @@ class Jinja2Templates:
         self,
         directory: str | PathLike | Sequence[str | PathLike] | None = None,
         env: Optional[
-            "jinja2.Environment"  # pyright: ignore [reportGeneralTypeIssues]
+            "Environment"  # pyright: ignore [reportGeneralTypeIssues]
         ] = None,
     ) -> None:
         assert jinja2 is not None, "jinja2 must be installed"
@@ -32,5 +33,5 @@ class Jinja2Templates:
 
     def get_template(
         self, name: str
-    ) -> "jinja2.Template":  # pyright: ignore [reportGeneralTypeIssues]
+    ) -> "Template":  # pyright: ignore [reportGeneralTypeIssues]
         return self._env.get_template(name)

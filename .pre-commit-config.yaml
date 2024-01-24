@@ -36,7 +36,7 @@ repos:
         types:
           - python
         additional_dependencies:
-          - 'pyright==1.1.347'
+          - 'pyright==1.1.348'
       - id: test
         name: pytest
         entry: bash -c 'export PYTHONPATH=$PYTHONPATH:src/ && pytest'
@@ -45,6 +45,7 @@ repos:
         always_run: true
         args: ['tests/', 'example/']
         additional_dependencies:
+          - 'python-multipart==0.0.6'
           - 'httpx==0.26.0'
           - 'pytest==7.4.4'
           - 'jinja2==3.1.3'

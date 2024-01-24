@@ -1,12 +1,19 @@
 from collections.abc import Iterator
 from http import HTTPStatus
 from typing import Any
+from wsgiref.types import StartResponse, WSGIEnvironment
 
 from mini_framework.middlewares.errors import ErrorsMiddleware
-from mini_framework.responses import PlainTextResponse, Response
+from mini_framework.request import extract_path_params, Request
+from mini_framework.responses import (
+    get_status_code_and_phrase,
+    PlainTextResponse,
+    prepare_headers,
+    Response,
+)
 from mini_framework.router import Router
 from mini_framework.routes.manager import UNHANDLED
-from mini_framework.utils import get_status_code_and_phrase, prepare_headers
+from mini_framework.routes.route import Route
 
 
 class Application(Router):
@@ -37,17 +44,32 @@ class Application(Router):
             "Application can not be attached to another Router."
         )
 
-    def __call__(self, environ, start_response) -> list[bytes]:
+    def __call__(
+        self, environ: WSGIEnvironment, start_response: StartResponse
+    ) -> list[bytes]:
         path: str = environ["PATH_INFO"]
 
-        if not path.endswith("/"):
+        if path[-1] != "/":
             path += "/"
 
-        method: str = environ["REQUEST_METHOD"]
+        path_template: str | None = self._get_path_template(path)
+
+        if path_template is None:
+            response = PlainTextResponse(
+                HTTPStatus.NOT_FOUND.phrase, status_code=HTTPStatus.NOT_FOUND
+            )
+            status = get_status_code_and_phrase(response.status_code)
+            headers = prepare_headers(response)
+            start_response(status, headers)
+            return [response.body]
+
+        path_params = extract_path_params(path_template, path)
+
+        request = Request(environ, path_params=path_params)
 
         data: dict[str, Any] = {}
 
-        response = self.propagate(path, method=method, data=data)
+        response = self.propagate(request, data=data)
 
         if response is UNHANDLED:
             response = PlainTextResponse(
@@ -55,46 +77,63 @@ class Application(Router):
             )
             status = get_status_code_and_phrase(response.status_code)
             headers = prepare_headers(response)
-            start_response(status, list(headers.items()))
+            start_response(status, headers)
             return [response.body]
 
         status = get_status_code_and_phrase(response.status_code)
         headers = prepare_headers(response)
-        start_response(status, list(headers.items()))
+        start_response(status, headers)
         return [response.body]
 
-    def propagate(
-        self, path: str, /, *, method: str, data: dict[str, Any] | None = None
-    ) -> Response:
-        if data is None:
-            data = {}
+    def _get_path_template(self, path: str) -> str | None:
+        for router in self.chain_tail:
+            for route in router.route:
+                if route.path == path:
+                    return route.path
+                try:
+                    path_params = extract_path_params(route.path, path)
+                except ValueError:
+                    continue
+                if path_params:
+                    return route.path
+        return None
 
-        data.update(self._workflow_data, path=path, method=method)
-
-        for router in self._get_routers(path, method=method):
+    def propagate(self, request: Request, /, **kwargs: Any) -> Response:
+        for router, route in self._get_routers_and_routes(request):
             for tail_router in router.chain_tail:
                 response = self.route.wrap_outer_middleware(
-                    tail_router.route.trigger, data
+                    tail_router.route.trigger,
+                    {
+                        **self._workflow_data,
+                        **kwargs,
+                        "request": request,
+                        "route": route,
+                    },
                 )
                 if response is not UNHANDLED:
                     return response
 
         return UNHANDLED
 
-    def _get_routers(self, path: str, /, *, method: str) -> Iterator[Router]:
+    def _get_routers_and_routes(
+        self, request: Request, /  # noqa: W504
+    ) -> Iterator[tuple[Router, Route]]:
         for router in self.chain_tail:
             for route in router.route:
-                if route.path == path and route.method == method:
-                    yield router
+                if route.match(request):
+                    yield router, route
 
     def propagate_error(
-        self, exception: Exception, data: dict[str, Any]
+        self, exception: Exception, /, **kwargs: Any
     ) -> Response:
-        data.update(self._workflow_data, exception=exception)
-
         for tail_router in self.chain_tail:
             response = self.error.wrap_outer_middleware(
-                tail_router.error.trigger, data
+                tail_router.error.trigger,
+                {
+                    **self._workflow_data,
+                    **kwargs,
+                    "exception": exception,
+                },
             )
             if response is not UNHANDLED:
                 return response

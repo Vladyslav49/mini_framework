@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from mini_framework import Application, Response, Router
+from mini_framework import Application, Router
 from mini_framework.filters import BaseFilter
 from mini_framework.middlewares.base import BaseMiddleware, CallNext
 from mini_framework.responses import PlainTextResponse
@@ -97,21 +97,36 @@ def test_router_chain_tail() -> None:
     assert list(router1.chain_tail) == [router1, router2, router3, router4]
 
 
-def test_get_routers(app: Application) -> None:
+def test_get_routers_and_routes(app: Application) -> None:
     router1 = Router()
     router2 = Router()
     router3 = Router()
 
-    router1.get("/")(lambda: True)
-    router2.get("/")(lambda: True)
+    route1 = lambda: True  # noqa: E731
+    route2 = lambda: True  # noqa: E731
+
+    router1.get("/")(route1)
+    router2.get("/")(route2)
 
     app.include_router(router1)
     app.include_router(router2)
     app.include_router(router3)
 
-    routers = app._get_routers("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+    request.path_params = {}
 
-    assert list(routers) == [router1, router2]
+    routers_and_routes = list(app._get_routers_and_routes(request))
+
+    routers_and_callbacks = [
+        (router, route.callback) for (router, route) in routers_and_routes
+    ]
+
+    assert routers_and_callbacks == [
+        (router1, route1),
+        (router2, route2),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -128,14 +143,20 @@ def test_get_routers_not_found(
     router1 = Router()
     router2 = Router()
 
-    router1.get("/")(lambda: True)
+    route1 = lambda: True  # noqa: E731
+
+    router1.get("/")(route1)
 
     app.include_router(router1)
     app.include_router(router2)
 
-    routers = app._get_routers(path, method=method)
+    request = Mock()
+    request.path = path
+    request.method = method
 
-    assert list(routers) == []
+    routers_and_routes = list(app._get_routers_and_routes(request))
+
+    assert routers_and_routes == []
 
 
 def test_multiple_routers_propagation(app: Application) -> None:
@@ -152,7 +173,11 @@ def test_multiple_routers_propagation(app: Application) -> None:
     app.include_router(router2)
     app.include_router(router3)
 
-    response: Response = app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    response = app.propagate(request)
 
     assert response.body == "first".encode()
     mocked_filter.assert_not_called()
@@ -185,7 +210,11 @@ def test_multiple_routers_with_filters_propagation(
     app.include_router(router1)
     app.include_router(router2)
 
-    response: Response = app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    response = app.propagate(request)
 
     if expected_result is UNHANDLED:
         assert response is UNHANDLED
@@ -213,7 +242,11 @@ def test_multiple_routers_with_filters_and_router_without_filters_propagation(
     app.include_router(router1)
     app.include_router(router2)
 
-    response: Response = app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    response = app.propagate(request)
 
     assert response.body == "second".encode()
 
@@ -237,7 +270,11 @@ def test_multiple_routers_and_filters_not_handled_propagation(
     app.include_router(router1)
     app.include_router(router2)
 
-    response: Response = app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    response = app.propagate(request)
 
     assert response is UNHANDLED
     mocked_filter_for_router1.assert_called_once()
@@ -248,7 +285,11 @@ def test_register_route(app: Application) -> None:
     mocked_callback = Mock()
     app.route.register(mocked_callback, "/", method="GET")
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -258,7 +299,11 @@ def test_register_via_decorator_and_get_result(app: Application) -> None:
     def index():
         return PlainTextResponse("Hello, World!")
 
-    response: Response = app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    response = app.propagate(request)
 
     assert response.body == "Hello, World!".encode()
 
@@ -267,7 +312,11 @@ def test_register_connect_method(app: Application) -> None:
     mocked_callback = Mock()
     app.connect("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.CONNECT)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.CONNECT
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -276,7 +325,11 @@ def test_register_delete_method(app: Application) -> None:
     mocked_callback = Mock()
     app.delete("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.DELETE)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.DELETE
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -285,7 +338,11 @@ def test_register_get_method(app: Application) -> None:
     mocked_callback = Mock()
     app.get("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -294,7 +351,11 @@ def test_register_head_method(app: Application) -> None:
     mocked_callback = Mock()
     app.head("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.HEAD)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.HEAD
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -303,7 +364,11 @@ def test_register_options_method(app: Application) -> None:
     mocked_callback = Mock()
     app.options("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.OPTIONS)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.OPTIONS
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -312,7 +377,11 @@ def test_register_patch_method(app: Application) -> None:
     mocked_callback = Mock()
     app.patch("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.PATCH)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.PATCH
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -321,7 +390,11 @@ def test_register_post_method(app: Application) -> None:
     mocked_callback = Mock()
     app.post("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.POST)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.POST
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -330,7 +403,11 @@ def test_register_put_method(app: Application) -> None:
     mocked_callback = Mock()
     app.put("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.PUT)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.PUT
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -339,13 +416,21 @@ def test_register_trace_method(app: Application) -> None:
     mocked_callback = Mock()
     app.trace("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.TRACE)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.TRACE
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
 
 def test_not_registered_route(app: Application) -> None:
-    response: Response = app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    response = app.propagate(request)
 
     assert response is UNHANDLED
 

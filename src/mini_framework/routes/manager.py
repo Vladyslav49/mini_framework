@@ -7,6 +7,7 @@ from unittest.mock import sentinel
 
 from mini_framework.middlewares.base import Middleware
 from mini_framework.middlewares.manager import MiddlewareManager
+from mini_framework.request import extract_path_params_from_template
 from mini_framework.routes.route import Callback, Filter, Route
 
 if TYPE_CHECKING:
@@ -46,41 +47,39 @@ class RoutesManager:
     def wrap_outer_middleware(
         self, callback: Any, data: dict[str, Any]
     ) -> Any:
-        wrapped_outer = self.outer_middleware.wrap_middlewares(
-            self.outer_middleware, callback
+        wrapped_outer = self.middleware.wrap_middlewares(
+            self.outer_middleware,
+            callback,
         )
         return wrapped_outer(data)
 
     def filter(self, *filters: Filter) -> None:
         self._route.filters.extend(filters)
 
-    def check_root_filters(
-        self, data: dict[str, Any]
-    ) -> tuple[bool, dict[str, Any]]:
-        return self._route.check(data)
+    def check_root_filters(self, **kwargs: Any) -> tuple[bool, dict[str, Any]]:
+        return self._route.check(**kwargs)
 
-    def trigger(self, path: str, method: str, **kwargs: Any) -> Any:
+    def trigger(self, **kwargs: Any) -> Any:
         for head_router in reversed(tuple(self._router.chain_head)):
-            result, data = head_router.route.check_root_filters(kwargs)
+            result, data = head_router.route.check_root_filters(**kwargs)
             if not result:
                 return UNHANDLED
             kwargs.update(data)
 
-        for route in self:
-            if route.path == path and route.method == method:
-                kwargs["route"] = route
-                result, data = route.check(kwargs)
+        route: Route = kwargs["route"]
 
-                if result:
-                    kwargs.update(data)
-                    try:
-                        wrapped_inner = self.middleware.wrap_middlewares(
-                            self._resolve_middlewares(),  # noqa: B038
-                            route.callback,
-                        )
-                        return wrapped_inner(kwargs)
-                    except SkipRoute:
-                        continue
+        result, data = route.check(**kwargs)
+
+        if result:
+            kwargs.update(data)
+            try:
+                wrapped_inner = self.middleware.wrap_middlewares(
+                    self._resolve_middlewares(),  # noqa: B038
+                    route.callback,
+                )
+                return wrapped_inner(kwargs)
+            except SkipRoute:
+                return UNHANDLED
 
         return UNHANDLED
 
@@ -108,6 +107,7 @@ class RoutesManager:
                 path=path,
                 method=method,
                 filters=list(filters),
+                path_params=extract_path_params_from_template(path),
             )
         )
         return callback

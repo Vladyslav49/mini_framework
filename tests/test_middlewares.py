@@ -1,5 +1,6 @@
 from http import HTTPMethod
 from typing import Any
+from unittest.mock import Mock
 
 from mini_framework import Application, Response
 from mini_framework.middlewares.base import CallNext
@@ -23,7 +24,11 @@ def test_outer_middleware(app: Application) -> None:
     def index() -> None:
         assert False  # noqa: B011
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     assert is_callback_called
 
@@ -45,7 +50,11 @@ def test_get_route_in_middleware_and_callback(app: Application) -> None:
         nonlocal is_callback_called
         is_callback_called = True
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     assert is_callback_called
 
@@ -69,7 +78,11 @@ def test_multiple_middlewares(app: Application) -> None:
     def index(value: int) -> None:
         assert value == 2
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
 
 def test_get_response_in_middleware(app: Application) -> None:
@@ -84,7 +97,11 @@ def test_get_response_in_middleware(app: Application) -> None:
     def index():
         return PlainTextResponse("Hello, World!")
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
 
 def test_skip_route_in_middleware(app: Application) -> None:
@@ -96,4 +113,8 @@ def test_skip_route_in_middleware(app: Application) -> None:
     def index() -> None:
         assert False  # noqa: B011
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)

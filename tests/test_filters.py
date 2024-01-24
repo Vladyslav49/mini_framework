@@ -10,7 +10,11 @@ def test_successful_route_resolution(app: Application) -> None:
 
     app.get("/", lambda: True)(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -20,7 +24,11 @@ def test_unsuccessful_route_resolution(app: Application) -> None:
 
     app.get("/", lambda: False)(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_not_called()
 
@@ -30,7 +38,11 @@ def test_successful_route_with_multiple_routes(app: Application) -> None:
 
     app.get("/", lambda: True, lambda: True)(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -41,7 +53,11 @@ def test_route_not_triggered(app: Application) -> None:
 
     app.get("/", mocked_filter, lambda: False)(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_not_called()
     mocked_filter.assert_called_once()
@@ -53,7 +69,11 @@ def test_filter_and_route_not_triggered(app: Application) -> None:
 
     app.get("/", lambda: False, mocked_filter)(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_not_called()
     mocked_filter.assert_not_called()
@@ -66,7 +86,11 @@ def test_filter_not_triggered_for_app_with_filter(app: Application) -> None:
     app.filter(lambda: False)
     app.get("/", lambda: mocked_filter)(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_not_called()
     mocked_filter.assert_not_called()
@@ -87,7 +111,11 @@ def test_router_filters_do_not_affect_to_another_router(
 
     router2.get("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
 
@@ -106,7 +134,11 @@ def test_router_filters_affect_to_sub_router(app: Application) -> None:
 
     router2.get("/")(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_not_called()
 
@@ -119,6 +151,10 @@ def test_filter_dependency_injection(app: Application) -> None:
 
     app.get("/", filter_path)(mocked_callback)
 
-    app.propagate("/", method=HTTPMethod.GET)
+    request = Mock()
+    request.path = "/"
+    request.method = HTTPMethod.GET
+
+    app.propagate(request)
 
     mocked_callback.assert_called_once()
