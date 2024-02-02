@@ -2,8 +2,11 @@
 __pycache__/
 *.pyc
 
-# PyCharm
+# IDE
 .idea/
 
 # pytest
 .pytest_cache/
+
+# coverage
+.coverage

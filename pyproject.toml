@@ -35,8 +35,18 @@ flake8-print = "^5.0.0"
 flake8-docstrings = "^1.7.0"
 pyright = "^1.1.348"
 pytest = "^7.4.4"
+pytest-cov = "^4.1.0"
 httpx = "^0.26.0"
 pre-commit = "^3.6.0"
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
+exclude_also = [
+    "def __repr__",
+]
 
 [build-system]
 requires = ["poetry-core"]

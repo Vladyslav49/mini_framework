@@ -14,6 +14,7 @@ from mini_framework.responses import (
 from mini_framework.router import Router
 from mini_framework.routes.manager import UNHANDLED
 from mini_framework.routes.route import Route
+from mini_framework.utils import prepare_path
 
 
 class Application(Router):
@@ -47,10 +48,7 @@ class Application(Router):
     def __call__(
         self, environ: WSGIEnvironment, start_response: StartResponse
     ) -> list[bytes]:
-        path: str = environ["PATH_INFO"]
-
-        if path[-1] != "/":
-            path += "/"
+        path = prepare_path(environ["PATH_INFO"])
 
         path_template: str | None = self._get_path_template(path)
 
@@ -75,10 +73,6 @@ class Application(Router):
             response = PlainTextResponse(
                 HTTPStatus.NOT_FOUND.phrase, status_code=HTTPStatus.NOT_FOUND
             )
-            status = get_status_code_and_phrase(response.status_code)
-            headers = prepare_headers(response)
-            start_response(status, headers)
-            return [response.body]
 
         status = get_status_code_and_phrase(response.status_code)
         headers = prepare_headers(response)

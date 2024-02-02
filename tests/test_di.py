@@ -1,12 +1,11 @@
-from http import HTTPMethod
-from typing import Any
+from typing import Any, NoReturn
 from unittest.mock import Mock
 
 from mini_framework import Application
 from mini_framework.middlewares.base import CallNext
 
 
-def test_di_via_middleware(app: Application) -> None:
+def test_di_via_middleware(app: Application, mock_request: Mock) -> None:
     @app.route.middleware
     def middleware(call_next: CallNext, data: dict[str, Any]) -> None:
         data["some_data"] = "some_data"
@@ -16,14 +15,10 @@ def test_di_via_middleware(app: Application) -> None:
     def index(some_data: str) -> None:
         assert some_data == "some_data"
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
-
-    app.propagate(request)
+    app.propagate(mock_request)
 
 
-def test_di_via_outer_middleware(app: Application) -> None:
+def test_di_via_outer_middleware(app: Application, mock_request: Mock) -> None:
     @app.outer_middleware
     def outer_middleware(call_next: CallNext, data: dict[str, Any]) -> None:
         data["some_data"] = "some_data"
@@ -33,42 +28,32 @@ def test_di_via_outer_middleware(app: Application) -> None:
     def index(some_data: str) -> None:
         assert some_data == "some_data"
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
-
-    app.propagate(request)
+    app.propagate(mock_request)
 
 
-def test_di_via_application_kwargs() -> None:
+def test_di_via_application_kwargs(mock_request: Mock) -> None:
     app = Application(some_data="some_data")
 
     @app.get("/")
     def index(some_data: str) -> None:
         assert some_data == "some_data"
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
-
-    app.propagate(request)
+    app.propagate(mock_request)
 
 
-def test_di_via_application_setitem(app: Application) -> None:
+def test_di_via_application_setitem(
+    app: Application, mock_request: Mock
+) -> None:
     app["some_data"] = "some_data"
 
     @app.get("/")
     def index(some_data: str) -> None:
         assert some_data == "some_data"
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
-
-    app.propagate(request)
+    app.propagate(mock_request)
 
 
-def test_di_via_filter(app: Application) -> None:
+def test_route_di_via_filter(app: Application, mock_request: Mock) -> None:
     def filter() -> dict[str, int]:
         return {"value": 0}
 
@@ -76,8 +61,19 @@ def test_di_via_filter(app: Application) -> None:
     def index(value: int) -> None:
         assert value == 0
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
+    app.propagate(mock_request)
 
-    app.propagate(request)
+
+def test_error_di_via_filter(app: Application, mock_request: Mock) -> None:
+    @app.get("/")
+    def index() -> NoReturn:
+        raise Exception
+
+    def filter() -> dict[str, int]:
+        return {"value": 0}
+
+    @app.error(filter)
+    def error_handler(value: int) -> None:
+        assert value == 0
+
+    app.propagate(mock_request)

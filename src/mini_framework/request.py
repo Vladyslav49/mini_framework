@@ -8,6 +8,8 @@ from urllib.parse import parse_qs
 from wsgiref.headers import Headers
 from wsgiref.types import WSGIEnvironment
 
+from mini_framework.utils import prepare_path
+
 try:
     import multipart
     from multipart.multipart import Field, File
@@ -62,10 +64,7 @@ class Request:
 
     @property
     def path(self) -> str:
-        path = self._environ["PATH_INFO"]
-        if path[-1] != "/":
-            path += "/"
-        return path
+        return prepare_path(self._environ["PATH_INFO"])
 
     @property
     def method(self) -> str:
@@ -130,9 +129,6 @@ class Request:
 def parse_query_params(environ) -> dict[str, list[str]]:
     query_string = environ.get("QUERY_STRING", "")
     query_params = parse_qs(query_string, keep_blank_values=True)
-    for key, value in query_params.items():
-        if len(value) == 1:
-            query_params[key] = value[0]
     return query_params
 
 
@@ -150,7 +146,6 @@ def extract_headers(environ) -> dict[str, str]:
 
 
 def extract_path_params_from_template(path: str) -> list[str]:
-    """Extracts parameters from the path template"""
     params = COMPILED_PATH_PARAM_PATTERN.findall(path)
 
     if not params:
@@ -190,10 +185,9 @@ def validate_path(path: str, params: list[str]) -> None:
 
 
 def extract_path_params(path_template: str, path: str) -> dict[str, str]:
-    """Extracts parameters from the path"""
     parts = path_template.strip("/").split("/")
 
-    if not parts:
+    if parts == [""]:
         return {}
 
     values = path.strip("/").split("/")

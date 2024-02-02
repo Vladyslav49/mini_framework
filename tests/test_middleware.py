@@ -1,15 +1,43 @@
-from http import HTTPMethod
-from typing import Any
+from typing import Any, NoReturn
 from unittest.mock import Mock
 
+
 from mini_framework import Application, Response
+from mini_framework.middlewares import BaseMiddleware
 from mini_framework.middlewares.base import CallNext
 from mini_framework.responses import PlainTextResponse
-from mini_framework.routes.manager import SkipRoute
+from mini_framework.routes.manager import SkipRoute, UNHANDLED
 from mini_framework.routes.route import Route
 
 
-def test_outer_middleware(app: Application) -> None:
+def test_register_middleware(app: Application) -> None:
+    mocked_middleware = Mock()
+    app.route.middleware.register(mocked_middleware)
+
+    assert any(m is mocked_middleware for m in app.route.middleware)
+
+
+def test_register_middleware_via_decorator(app: Application) -> None:
+    @app.route.middleware
+    def middleware(call_next: CallNext, data: dict[str, Any]) -> None:
+        pass
+
+    assert any(m is middleware for m in app.route.middleware)
+
+
+def test_register_middleware_via_base_middleware(app: Application) -> None:
+    class Middleware(BaseMiddleware):
+        def __call__(self, call_next: CallNext, data: dict[str, Any]) -> Any:
+            return call_next(data)
+
+    middleware = Middleware()
+
+    app.route.middleware.register(middleware)
+
+    assert any(m is middleware for m in app.route.middleware)
+
+
+def test_outer_middleware(app: Application, mock_request: Mock) -> None:
     is_callback_called = False
 
     app.filter(lambda: False)
@@ -24,16 +52,14 @@ def test_outer_middleware(app: Application) -> None:
     def index() -> None:
         assert False  # noqa: B011
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
-
-    app.propagate(request)
+    app.propagate(mock_request)
 
     assert is_callback_called
 
 
-def test_get_route_in_middleware_and_callback(app: Application) -> None:
+def test_get_route_in_middleware_and_callback(
+    app: Application, mock_request: Mock
+) -> None:
     is_callback_called = False
 
     @app.route.middleware
@@ -50,16 +76,12 @@ def test_get_route_in_middleware_and_callback(app: Application) -> None:
         nonlocal is_callback_called
         is_callback_called = True
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
-
-    app.propagate(request)
+    app.propagate(mock_request)
 
     assert is_callback_called
 
 
-def test_multiple_middlewares(app: Application) -> None:
+def test_multiple_middlewares(app: Application, mock_request: Mock) -> None:
     @app.route.middleware
     def middleware1(call_next: CallNext, data: dict[str, Any]) -> None:
         data["value"] = 1
@@ -78,14 +100,12 @@ def test_multiple_middlewares(app: Application) -> None:
     def index(value: int) -> None:
         assert value == 2
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
-
-    app.propagate(request)
+    app.propagate(mock_request)
 
 
-def test_get_response_in_middleware(app: Application) -> None:
+def test_get_response_in_middleware(
+    app: Application, mock_request: Mock
+) -> None:
     @app.route.middleware
     def middleware(call_next: CallNext, data: dict[str, Any]) -> None:
         response: Response = call_next(data)
@@ -97,24 +117,20 @@ def test_get_response_in_middleware(app: Application) -> None:
     def index():
         return PlainTextResponse("Hello, World!")
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
-
-    app.propagate(request)
+    app.propagate(mock_request)
 
 
-def test_skip_route_in_middleware(app: Application) -> None:
-    @app.route.middleware
-    def middleware(call_next: CallNext, data: dict[str, Any]) -> None:
+def test_skip_route_in_middleware(
+    app: Application, mock_request: Mock
+) -> None:
+    @app.middleware
+    def middleware(call_next: CallNext, data: dict[str, Any]) -> NoReturn:
         raise SkipRoute
 
     @app.get("/")
     def index() -> None:
         assert False  # noqa: B011
 
-    request = Mock()
-    request.path = "/"
-    request.method = HTTPMethod.GET
+    response = app.propagate(mock_request)
 
-    app.propagate(request)
+    assert response is UNHANDLED

@@ -7,5 +7,5 @@ app = Application()
 
 @app.get("/")
 def index(request: Request):
-    name = request.query_params.get("name", "Anonymous")
-    return PlainTextResponse(f"Hello, {name}!")
+    names = request.query_params.get("name", ["Anonymous"])
+    return PlainTextResponse(f"Hello, {names[0]}!")

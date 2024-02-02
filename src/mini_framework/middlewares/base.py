@@ -8,5 +8,7 @@ Middleware: TypeAlias = Callable[[CallNext, dict[str, Any]], Any]
 
 class BaseMiddleware(ABC):
     @abstractmethod
-    def __call__(self, call_next: CallNext, data: dict[str, Any]) -> Any:
+    def __call__(
+        self, call_next: CallNext, data: dict[str, Any]
+    ) -> Any:  # pragma: no cover
         raise NotImplementedError

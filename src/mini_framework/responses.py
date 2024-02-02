@@ -94,7 +94,7 @@ class Response:
             return b""
         if isinstance(content, bytes):
             return content
-        return content.encode(self.charset)  # type: ignore
+        return content.encode(self.charset)
 
 
 class PlainTextResponse(Response):
@@ -166,11 +166,13 @@ class JSONResponse(Response):
         )
 
     def render(self, content: Any) -> bytes:
-        if content is None:
-            return b""
-        if isinstance(content, bytes):
-            return content
-        return json.dumps(content).encode(self.charset)
+        return json.dumps(
+            content,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=None,
+            separators=(",", ":"),
+        ).encode(self.charset)
 
 
 class RedirectResponse(Response):

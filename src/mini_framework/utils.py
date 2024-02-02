@@ -16,3 +16,9 @@ def prepare_kwargs(
         return kwargs
     parameters = {*spec.args, *spec.kwonlyargs}
     return {key: kwargs[key] for key in parameters if key in kwargs}
+
+
+def prepare_path(path: str) -> str:
+    if path[-1] == "/":
+        return path
+    return path + "/"
