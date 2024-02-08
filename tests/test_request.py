@@ -2,7 +2,6 @@ import importlib
 import sys
 from contextlib import AbstractContextManager, nullcontext
 from io import BytesIO
-from typing import Callable
 from unittest.mock import patch
 from wsgiref.types import WSGIEnvironment
 
@@ -16,9 +15,9 @@ from mini_framework.request import (
     parse_query_params,
     Request,
     validate_path,
+    prepare_path,
 )
 from mini_framework.responses import PlainTextResponse, prepare_headers
-from mini_framework.utils import prepare_kwargs, prepare_path
 
 
 def test_create_request() -> None:
@@ -185,25 +184,6 @@ def test_prepare_headers_with_cookies() -> None:
 
     assert headers[0][1] == "name=john; Path=/; SameSite=lax"
     assert headers[1][1] == "age=20; Path=/; SameSite=lax"
-
-
-@pytest.mark.parametrize(
-    "callback, expected_prepared_kwargs",
-    [
-        (lambda: None, {}),
-        (lambda a: None, {"a": 1}),
-        (lambda c: None, {}),
-        (lambda **kwargs: None, {"a": 1, "b": 2}),
-    ],
-)
-def test_prepare_kwargs(
-    callback: Callable[..., None], expected_prepared_kwargs: dict[str, str]
-) -> None:
-    kwargs = {"a": 1, "b": 2}
-
-    prepared_kwargs = prepare_kwargs(callback, kwargs)
-
-    assert prepared_kwargs == expected_prepared_kwargs
 
 
 @pytest.mark.parametrize("path", ["/home/", "/home"])

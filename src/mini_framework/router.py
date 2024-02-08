@@ -5,7 +5,7 @@ from typing import Optional
 from mini_framework.errors.manager import ErrorsManager
 from mini_framework.middlewares.base import Middleware
 from mini_framework.routes.manager import RoutesManager
-from mini_framework.routes.route import Callback, Filter
+from mini_framework.routes.route import CallbackType
 
 
 class Router:
@@ -97,50 +97,50 @@ class Router:
     ) -> Callable[[Middleware], Middleware] | Middleware:
         return self.route.middleware(middleware)
 
-    def filter(self, *filters: Filter) -> None:
+    def filter(self, *filters: CallbackType) -> None:
         self.route.filter(*filters)
 
     def connect(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.CONNECT)
 
     def delete(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.DELETE)
 
     def get(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.GET)
 
     def head(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.HEAD)
 
     def options(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.OPTIONS)
 
     def patch(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.PATCH)
 
     def post(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.POST)
 
     def put(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.PUT)
 
     def trace(
-        self, path: str, /, *filters: Filter
-    ) -> Callable[[Callback], Callback]:
+        self, path: str, /, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
         return self.route(path, *filters, method=HTTPMethod.TRACE)

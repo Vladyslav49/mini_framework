@@ -3,8 +3,7 @@ from functools import partial, wraps
 from typing import Any
 
 from mini_framework.middlewares.base import CallNext, Middleware
-from mini_framework.routes.route import Callback
-from mini_framework.utils import prepare_kwargs
+from mini_framework.routes.route import CallbackType
 
 
 class MiddlewareManager:
@@ -29,11 +28,11 @@ class MiddlewareManager:
 
     @staticmethod
     def wrap_middlewares(
-        middlewares: Iterable[Middleware], callback: Callback
+        middlewares: Iterable[Middleware], callback: CallbackType
     ) -> CallNext:
         @wraps(callback)
         def callback_wrapper(kwargs: dict[str, Any]) -> Any:
-            return callback(**prepare_kwargs(callback, kwargs))
+            return callback(**kwargs)
 
         middleware = callback_wrapper
         for m in reversed(tuple(middlewares)):

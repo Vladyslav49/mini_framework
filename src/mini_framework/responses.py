@@ -7,7 +7,8 @@ from http.client import responses
 from http.cookies import BaseCookie, SimpleCookie
 from typing import Any, Literal
 from urllib.parse import quote
-from wsgiref.headers import Headers
+
+from multidict import CIMultiDict
 
 
 class Response:
@@ -25,7 +26,7 @@ class Response:
         self.status_code = status_code
         if headers is None:
             headers = {}
-        self.headers = Headers(list(headers.items()))
+        self.headers = CIMultiDict(headers)
         self.media_type = media_type
         self.charset = charset
         self.body = self.render(content)
@@ -67,7 +68,7 @@ class Response:
             ], "samesite must be either 'strict', 'lax' or 'none'"
             cookie[key]["samesite"] = samesite
         cookie_val = cookie.output(header="").strip()
-        self.headers.add_header("Set-Cookie", cookie_val)
+        self.headers.add("Set-Cookie", cookie_val)
 
     def delete_cookie(
         self,
@@ -202,7 +203,7 @@ def prepare_headers(response: Response) -> list[tuple[str, str]]:
     """Prepare headers for a given response."""
     response_cookies = SimpleCookie()
 
-    for cookie in response.headers.get_all("Set-Cookie"):
+    for cookie in response.headers.getall("Set-Cookie", ()):
         response_cookies.load(cookie)
 
     headers = [
@@ -210,4 +211,4 @@ def prepare_headers(response: Response) -> list[tuple[str, str]]:
         ("Content-Length", str(len(response.body))),
     ]
 
-    return response.headers.items() + headers
+    return list(response.headers.items()) + headers

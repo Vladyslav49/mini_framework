@@ -8,7 +8,7 @@ from unittest.mock import sentinel
 from mini_framework.middlewares.base import Middleware
 from mini_framework.middlewares.manager import MiddlewareManager
 from mini_framework.request import extract_path_params_from_template
-from mini_framework.routes.route import Callback, Filter, Route
+from mini_framework.routes.route import CallbackType, CallableObject, Route
 
 if TYPE_CHECKING:
     from mini_framework.router import Router
@@ -53,8 +53,10 @@ class RoutesManager:
         )
         return wrapped_outer(data)
 
-    def filter(self, *filters: Filter) -> None:
-        self._route.filters.extend(filters)
+    def filter(self, *filters: CallbackType) -> None:
+        self._route.filters.extend(
+            [CallableObject(callback=filter) for filter in filters],
+        )
 
     def check_root_filters(self, **kwargs: Any) -> tuple[bool, dict[str, Any]]:
         return self._route.check(**kwargs)
@@ -75,7 +77,7 @@ class RoutesManager:
             try:
                 wrapped_inner = self.middleware.wrap_middlewares(
                     self._resolve_middlewares(),  # noqa: B038
-                    route.callback,
+                    route.call,
                 )
                 return wrapped_inner(kwargs)
             except SkipRoute:
@@ -90,23 +92,30 @@ class RoutesManager:
         return middlewares
 
     def __call__(
-        self, path: str, /, *filters: Filter, method: str
-    ) -> Callable[[Callback], Callback]:
-        def wrapper(callback: Callback) -> Callback:
+        self, path: str, /, *filters: CallbackType, method: str
+    ) -> Callable[[CallbackType], CallbackType]:
+        def wrapper(callback: CallbackType) -> CallbackType:
             self.register(callback, path, *filters, method=method)
             return callback
 
         return wrapper
 
     def register(
-        self, callback: Callback, path: str, /, *filters: Filter, method: str
-    ) -> Callback:
+        self,
+        callback: CallbackType,
+        path: str,
+        /,
+        *filters: CallbackType,
+        method: str,
+    ) -> CallbackType:
         self._routes.append(
             Route(
                 callback=callback,
                 path=path,
                 method=method,
-                filters=list(filters),
+                filters=[
+                    CallableObject(callback=filter) for filter in filters
+                ],
                 path_params=extract_path_params_from_template(path),
             )
         )

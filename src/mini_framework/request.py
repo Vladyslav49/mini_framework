@@ -5,10 +5,9 @@ from collections.abc import Callable
 from http.cookies import SimpleCookie
 from typing import Any
 from urllib.parse import parse_qs
-from wsgiref.headers import Headers
 from wsgiref.types import WSGIEnvironment
 
-from mini_framework.utils import prepare_path
+from multidict import CIMultiDict
 
 try:
     import multipart
@@ -59,7 +58,7 @@ class Request:
         self._json: Any | None = None
         self._query_params: dict[str, list[str]] | None = None
         self._multipart: FormData | None = None
-        self._headers: Headers | None = None
+        self._headers: CIMultiDict | None = None
         self._cookies: dict[str, str] | None = None
 
     @property
@@ -87,10 +86,10 @@ class Request:
         return self._path_params
 
     @property
-    def headers(self) -> Headers:
+    def headers(self) -> CIMultiDict:
         if self._headers is None:
-            self._headers = Headers(
-                list(extract_headers(self._environ).items())
+            self._headers = CIMultiDict(
+                extract_headers(self._environ),
             )
         return self._headers
 
@@ -126,13 +125,19 @@ class Request:
         return self._multipart
 
 
-def parse_query_params(environ) -> dict[str, list[str]]:
+def prepare_path(path: str) -> str:
+    if path[-1] == "/":
+        return path
+    return path + "/"
+
+
+def parse_query_params(environ: WSGIEnvironment) -> dict[str, list[str]]:
     query_string = environ.get("QUERY_STRING", "")
     query_params = parse_qs(query_string, keep_blank_values=True)
     return query_params
 
 
-def extract_headers(environ) -> dict[str, str]:
+def extract_headers(environ: WSGIEnvironment) -> dict[str, str]:
     headers = {
         key[5:].replace("_", "-").title(): value
         for key, value in environ.items()
@@ -213,5 +218,8 @@ def extract_path_params(path_template: str, path: str) -> dict[str, str]:
 
 
 def cookie_parser(cookie_string: str) -> dict[str, str]:
+    if not cookie_string:
+        return {}
+
     cookies = SimpleCookie(cookie_string)
     return {key: cookie.value for key, cookie in cookies.items()}

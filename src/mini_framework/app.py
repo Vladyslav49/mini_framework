@@ -1,10 +1,10 @@
 from collections.abc import Iterator
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Final
 from wsgiref.types import StartResponse, WSGIEnvironment
 
 from mini_framework.middlewares.errors import ErrorsMiddleware
-from mini_framework.request import extract_path_params, Request
+from mini_framework.request import extract_path_params, Request, prepare_path
 from mini_framework.responses import (
     get_status_code_and_phrase,
     PlainTextResponse,
@@ -14,7 +14,10 @@ from mini_framework.responses import (
 from mini_framework.router import Router
 from mini_framework.routes.manager import UNHANDLED
 from mini_framework.routes.route import Route
-from mini_framework.utils import prepare_path
+
+_NOT_FOUND_RESPONSE: Final[PlainTextResponse] = PlainTextResponse(
+    HTTPStatus.NOT_FOUND.phrase, status_code=HTTPStatus.NOT_FOUND
+)
 
 
 class Application(Router):
@@ -53,26 +56,18 @@ class Application(Router):
         path_template: str | None = self._get_path_template(path)
 
         if path_template is None:
-            response = PlainTextResponse(
-                HTTPStatus.NOT_FOUND.phrase, status_code=HTTPStatus.NOT_FOUND
-            )
-            status = get_status_code_and_phrase(response.status_code)
-            headers = prepare_headers(response)
-            start_response(status, headers)
-            return [response.body]
+            response = _NOT_FOUND_RESPONSE
+        else:
+            path_params = extract_path_params(path_template, path)
 
-        path_params = extract_path_params(path_template, path)
+            request = Request(environ, path_params=path_params)
 
-        request = Request(environ, path_params=path_params)
+            data: dict[str, Any] = {}
 
-        data: dict[str, Any] = {}
+            response = self.propagate(request, data=data)
 
-        response = self.propagate(request, data=data)
-
-        if response is UNHANDLED:
-            response = PlainTextResponse(
-                HTTPStatus.NOT_FOUND.phrase, status_code=HTTPStatus.NOT_FOUND
-            )
+            if response is UNHANDLED:
+                response = _NOT_FOUND_RESPONSE
 
         status = get_status_code_and_phrase(response.status_code)
         headers = prepare_headers(response)
@@ -110,7 +105,9 @@ class Application(Router):
         return UNHANDLED
 
     def _get_routers_and_routes(
-        self, request: Request, /  # noqa: W504
+        self,
+        request: Request,
+        /,  # noqa: W504
     ) -> Iterator[tuple[Router, Route]]:
         for router in self.chain_tail:
             for route in router.route:

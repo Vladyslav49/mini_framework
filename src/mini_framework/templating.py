@@ -31,7 +31,5 @@ class Jinja2Templates:
         elif env is not None:
             self._env = env
 
-    def get_template(
-        self, name: str
-    ) -> "Template":  # pyright: ignore [reportGeneralTypeIssues]
+    def get_template(self, name: str) -> "Template":  # pyright: ignore [reportGeneralTypeIssues]
         return self._env.get_template(name)

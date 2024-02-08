@@ -67,9 +67,7 @@ def test_set_parent_router_not_router() -> None:
     with pytest.raises(
         ValueError, match="router should be instance of Router not 'str'"
     ):
-        router.parent_router = (
-            "some"  # type: ignore[reportAttributeAccessIssue]
-        )
+        router.parent_router = "some"  # type: ignore[reportAttributeAccessIssue]
 
 
 def test_router_chain_head() -> None:

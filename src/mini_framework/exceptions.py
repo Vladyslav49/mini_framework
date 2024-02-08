@@ -24,5 +24,5 @@ class HTTPException(FrameworkError):
         self.headers = headers
         self.response_class = response_class
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         return f"{type(self).__name__}(status_code={self.status_code!r}, detail={self.detail!r})"  # noqa: E501

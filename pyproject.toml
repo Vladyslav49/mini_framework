@@ -8,6 +8,7 @@ packages = [{include = "mini_framework", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+multidict = "^6.0.5"
 
 [tool.poetry.group.templates]
 optional = true
@@ -25,27 +26,28 @@ python-multipart = "^0.0.6"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-black = ">=23.12.1,<23.13.0"
-flake8 = "^7.0.0"
-flake8-commas = "^2.1.0"
-flake8-import-order = "^0.18.2"
-flake8-bugbear = "^24.1.16"
-flake8-comprehensions = "^3.14.0"
-flake8-print = "^5.0.0"
-flake8-docstrings = "^1.7.0"
+ruff = "^0.2.1"
 pyright = "^1.1.348"
 pytest = "^7.4.4"
-pytest-cov = "^4.1.0"
 httpx = "^0.26.0"
 pre-commit = "^3.6.0"
+pytest-cov = "^4.1.0"
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[tool.pyright]
+reportMissingImports = false
 
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
-]
-exclude_also = [
-    "def __repr__",
 ]
 
 [build-system]

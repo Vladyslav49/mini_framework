@@ -8,6 +8,28 @@ import pytest
 from mini_framework import Application, Router
 from mini_framework.responses import PlainTextResponse
 from mini_framework.routes.manager import SkipRoute, UNHANDLED
+from mini_framework.routes.route import CallableObject
+
+
+@pytest.mark.parametrize(
+    "callback, expected_prepared_kwargs",
+    [
+        (lambda: None, {}),
+        (lambda a: None, {"a": 1}),
+        (lambda c: None, {}),
+        (lambda **kwargs: None, {"a": 1, "b": 2}),
+    ],
+)
+def test_prepare_kwargs(
+    callback: Callable[..., None], expected_prepared_kwargs: dict[str, str]
+) -> None:
+    kwargs = {"a": 1, "b": 2}
+
+    route = CallableObject(callback=callback)
+
+    prepared_kwargs = route._prepare_kwargs(kwargs)
+
+    assert prepared_kwargs == expected_prepared_kwargs
 
 
 @pytest.mark.parametrize("method", list(HTTPMethod))

@@ -1,23 +1,41 @@
+import inspect
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from functools import partial
 from http import HTTPMethod
 from typing import Any, TypeAlias
 
-from mini_framework.filters import BaseFilter
 from mini_framework.request import Request
-from mini_framework.utils import prepare_kwargs
 
-Callback: TypeAlias = Callable[..., Any]
-Filter: TypeAlias = BaseFilter | Callable[..., dict[str, Any] | bool]
+CallbackType: TypeAlias = Callable[..., Any]
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class Route:
-    callback: Callback
+@dataclass(slots=True, kw_only=True)
+class CallableObject:
+    callback: CallbackType
+    params: set[str] = field(init=False)
+    varkw: bool = field(init=False)
+
+    def __post_init__(self) -> None:
+        callback = inspect.unwrap(self.callback)
+        spec = inspect.getfullargspec(callback)
+        self.params = {*spec.args, *spec.kwonlyargs}
+        self.varkw = spec.varkw is not None
+
+    def _prepare_kwargs(self, kwargs: dict[str, Any], /) -> dict[str, Any]:
+        if self.varkw:
+            return kwargs
+        return {key: kwargs[key] for key in self.params if key in kwargs}
+
+    def call(self, **kwargs: Any) -> Any:
+        kwargs = self._prepare_kwargs(kwargs)
+        return self.callback(**kwargs)
+
+
+@dataclass(slots=True, kw_only=True)
+class Route(CallableObject):
     path: str
     method: str
-    filters: list[Filter] = field(default_factory=list)
+    filters: list[CallableObject] = field(default_factory=list)
     path_params: list[str] = field(default_factory=list)
 
     def __post_init__(self):
@@ -29,6 +47,7 @@ class Route:
             raise ValueError(
                 f"Method {self.method!r} is not valid HTTP method"
             )
+        super(Route, self).__post_init__()
 
     def match(self, request: Request) -> bool:
         if request.method != self.method:
@@ -44,9 +63,7 @@ class Route:
         if not self.filters:
             return True, kwargs
         for filter in self.filters:
-            if kwargs := prepare_kwargs(filter, kwargs):
-                filter = partial(filter, **kwargs)
-            check = filter()
+            check = filter.call(**kwargs)
             if not check:
                 return False, kwargs
             if isinstance(check, dict):

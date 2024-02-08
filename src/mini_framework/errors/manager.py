@@ -10,7 +10,7 @@ from mini_framework.filters.exception import ExceptionTypeFilter
 from mini_framework.middlewares.base import Middleware
 from mini_framework.middlewares.manager import MiddlewareManager
 from mini_framework.routes.manager import SkipRoute, UNHANDLED
-from mini_framework.routes.route import Callback, Filter
+from mini_framework.routes.route import CallableObject, CallbackType
 
 if TYPE_CHECKING:
     from mini_framework.router import Router
@@ -37,7 +37,9 @@ class ErrorsManager:
         self._error = Error(callback=lambda: True)
         self._http_exception_error = Error(
             callback=http_exception_handler,
-            filters=[ExceptionTypeFilter(HTTPException)],
+            filters=[
+                CallableObject(callback=ExceptionTypeFilter(HTTPException)),
+            ],
         )
 
     def __iter__(self) -> Iterator[Error]:
@@ -47,17 +49,20 @@ class ErrorsManager:
         self, callback: Any, data: dict[str, Any]
     ) -> Any:
         wrapped_outer = self.outer_middleware.wrap_middlewares(
-            self.outer_middleware, callback
+            self.outer_middleware,
+            callback,
         )
         return wrapped_outer(data)
 
-    def filter(self, *filters: Filter) -> None:
-        self._error.filters.extend(filters)
+    def filter(self, *filters: CallbackType) -> None:
+        self._error.filters.extend(
+            [CallableObject(callback=filter) for filter in filters]
+        )
 
     def check_root_filters(
-        self, data: dict[str, Any]
+        self, kwargs: dict[str, Any]
     ) -> tuple[bool, dict[str, Any]]:
-        return self._error.check(data)
+        return self._error.check(**kwargs)
 
     def trigger(self, **kwargs: Any) -> Any:
         for head_router in reversed(tuple(self._router.chain_head)):
@@ -70,14 +75,14 @@ class ErrorsManager:
 
         for error in errors:
             kwargs["error"] = error
-            result, data = error.check(kwargs)
+            result, data = error.check(**kwargs)
 
             if result:
                 kwargs.update(data)
                 try:
                     wrapped_inner = self.middleware.wrap_middlewares(
                         self._resolve_middlewares(),  # noqa: B038
-                        error.callback,
+                        error.call,
                     )
                     return wrapped_inner(kwargs)
                 except SkipRoute:
@@ -91,13 +96,24 @@ class ErrorsManager:
             middlewares.extend(tuple(router.error.middleware))
         return middlewares
 
-    def __call__(self, *filters: Filter) -> Callable[[Callback], Callback]:
-        def wrapper(callback: Callback) -> Callback:
+    def __call__(
+        self, *filters: CallbackType
+    ) -> Callable[[CallbackType], CallbackType]:
+        def wrapper(callback: CallbackType) -> CallbackType:
             self.register(callback, *filters)
             return callback
 
         return wrapper
 
-    def register(self, callback: Callback, /, *filters: Filter) -> Callback:
-        self._errors.append(Error(callback=callback, filters=list(filters)))
+    def register(
+        self, callback: CallbackType, /, *filters: CallbackType
+    ) -> CallbackType:
+        self._errors.append(
+            Error(
+                callback=callback,
+                filters=[
+                    CallableObject(callback=filter) for filter in filters
+                ],
+            ),
+        )
         return callback

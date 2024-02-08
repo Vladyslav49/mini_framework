@@ -5,8 +5,9 @@ __pycache__/
 # IDE
 .idea/
 
-# pytest
+# cache
 .pytest_cache/
+.ruff_cache/
 
 # coverage
 .coverage
