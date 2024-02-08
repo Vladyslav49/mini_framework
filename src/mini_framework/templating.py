@@ -1,12 +1,38 @@
-from collections.abc import Sequence
+from collections.abc import Sequence, Mapping
+from http import HTTPStatus
 from os import PathLike
-from typing import Optional
+from typing import Optional, Any
+
+from mini_framework.responses import HTMLResponse
 
 try:
     import jinja2
     from jinja2 import Environment, Template
 except ImportError:
     jinja2 = None
+
+
+class _TemplateResponse(HTMLResponse):
+    __slots__ = ()
+
+    def __init__(
+        self,
+        content: Any,
+        *,
+        status_code: int = HTTPStatus.OK,
+        headers: Mapping[str, str] | None = None,
+        media_type: str | None = None,
+        charset: str = "utf-8",
+    ) -> None:
+        if media_type is None:
+            media_type = "text/html"
+        super().__init__(
+            content,
+            status_code=status_code,
+            headers=headers,
+            media_type=media_type,
+            charset=charset,
+        )
 
 
 class Jinja2Templates:
@@ -30,6 +56,26 @@ class Jinja2Templates:
             )
         elif env is not None:
             self._env = env
+
+    def TemplateResponse(
+        self,
+        name: str,
+        context: dict[str, Any] | None = None,
+        *,
+        status_code: int = HTTPStatus.OK,
+        headers: Mapping[str, str] | None = None,
+        media_type: str | None = None,
+        charset: str = "utf-8",
+    ) -> _TemplateResponse:
+        template = self.get_template(name)
+        content = template.render(**context)
+        return _TemplateResponse(
+            content,
+            status_code=status_code,
+            headers=headers,
+            media_type=media_type,
+            charset=charset,
+        )
 
     def get_template(self, name: str) -> "Template":  # pyright: ignore [reportGeneralTypeIssues]
         return self._env.get_template(name)
