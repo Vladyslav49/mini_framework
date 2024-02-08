@@ -62,9 +62,7 @@ class Application(Router):
 
             request = Request(environ, path_params=path_params)
 
-            data: dict[str, Any] = {}
-
-            response = self.propagate(request, data=data)
+            response = self.propagate(request, **path_params)
 
             if response is UNHANDLED:
                 response = _NOT_FOUND_RESPONSE
