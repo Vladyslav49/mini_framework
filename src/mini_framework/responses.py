@@ -1,10 +1,14 @@
+import hashlib
 import json
-from collections.abc import Mapping
+import os
+from collections.abc import Mapping, Iterable
 from datetime import datetime
-from email.utils import format_datetime
+from email.utils import format_datetime, formatdate
 from http import HTTPStatus
 from http.client import responses
 from http.cookies import BaseCookie, SimpleCookie
+from mimetypes import guess_type
+from os import PathLike
 from typing import Any, Literal
 from urllib.parse import quote
 
@@ -177,6 +181,8 @@ class JSONResponse(Response):
 
 
 class RedirectResponse(Response):
+    __slots__ = ()
+
     def __init__(
         self,
         url: str,
@@ -192,6 +198,91 @@ class RedirectResponse(Response):
         self.headers["location"] = quote(url, safe=":/%#?=@[]!$&'()*+,;")
 
 
+class StreamingResponse(Response):
+    __slots__ = ("body_iterator",)
+
+    def __init__(
+        self,
+        content: Iterable[bytes],
+        *,
+        status_code: int = HTTPStatus.OK,
+        headers: Mapping[str, str] | None = None,
+        media_type: str | None = None,
+    ) -> None:
+        super().__init__(
+            content=b"",
+            status_code=status_code,
+            headers=headers,
+            media_type=media_type,
+        )
+        self.body_iterator = content
+
+    def iter_content(self) -> Iterable[bytes]:
+        return self.body_iterator
+
+
+class FileResponse(Response):
+    __slots__ = ("path", "filename", "stat_result")
+
+    chunk_size = 64 * 1024
+
+    def __init__(
+        self,
+        path: str | PathLike[str],
+        *,
+        status_code: int = 200,
+        headers: Mapping[str, str] | None = None,
+        media_type: str | None = None,
+        filename: str | None = None,
+        stat_result: os.stat_result | None = None,
+        content_disposition_type: str = "attachment",
+    ) -> None:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"File '{path}' not found")
+        if not os.path.isfile(path):
+            raise ValueError(f"'{path}' is not a valid file path")
+        super().__init__(
+            content=b"",
+            status_code=status_code,
+            headers=headers,
+            media_type=media_type,
+        )
+        self.path = path
+        self.status_code = status_code
+        self.filename = filename
+        if media_type is None:
+            media_type = guess_type(filename or path)[0] or "text/plain"
+        self.media_type = media_type
+
+        content_disposition_filename = filename or os.path.basename(path)
+        content_disposition = '{}; filename="{}"'.format(
+            content_disposition_type, content_disposition_filename
+        )
+        self.headers.setdefault("Content-Disposition", content_disposition)
+
+        self.stat_result = stat_result or os.stat(path)
+        self.set_stat_headers()
+
+    def set_stat_headers(self) -> None:
+        content_length = str(self.stat_result.st_size)
+        last_modified = formatdate(self.stat_result.st_mtime, usegmt=True)
+        etag_base = (
+            str(self.stat_result.st_mtime)
+            + "-"
+            + str(self.stat_result.st_size)
+        )
+        etag = f'"{hashlib.md5(etag_base.encode(), usedforsecurity=False).hexdigest()}"'
+
+        self.headers.setdefault("Content-Length", content_length)
+        self.headers.setdefault("Last-Modified", last_modified)
+        self.headers.setdefault("Etag", etag)
+
+    def iter_content(self) -> Iterable[bytes]:
+        with open(self.path, mode="rb") as file:
+            while chunk := file.read(self.chunk_size):
+                yield chunk
+
+
 def get_status_code_and_phrase(status_code: int) -> str:
     """Get status code and phrase for a given status code."""
     if status_code not in responses:
@@ -201,14 +292,8 @@ def get_status_code_and_phrase(status_code: int) -> str:
 
 def prepare_headers(response: Response) -> list[tuple[str, str]]:
     """Prepare headers for a given response."""
-    response_cookies = SimpleCookie()
-
-    for cookie in response.headers.getall("Set-Cookie", ()):
-        response_cookies.load(cookie)
-
-    headers = [
-        ("Content-Type", f"{response.media_type}; charset={response.charset}"),
-        ("Content-Length", str(len(response.body))),
-    ]
-
-    return list(response.headers.items()) + headers
+    response.headers.setdefault(
+        "Content-Type", f"{response.media_type}; charset={response.charset}"
+    )
+    response.headers.setdefault("Content-Length", str(len(response.body)))
+    return list(response.headers.items())

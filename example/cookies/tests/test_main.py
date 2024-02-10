@@ -3,6 +3,8 @@ from http import HTTPStatus
 import pytest
 from httpx import Client
 
+pytestmark = pytest.mark.random_order(disabled=True)
+
 
 def test_cookies(client: Client) -> None:
     response = client.get("/cookies/")

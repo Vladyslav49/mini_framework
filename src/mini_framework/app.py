@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Iterable
 from http import HTTPStatus
 from typing import Any, Final
 from wsgiref.types import StartResponse, WSGIEnvironment
@@ -10,6 +10,8 @@ from mini_framework.responses import (
     PlainTextResponse,
     prepare_headers,
     Response,
+    StreamingResponse,
+    FileResponse,
 )
 from mini_framework.router import Router
 from mini_framework.routes.manager import UNHANDLED
@@ -50,7 +52,7 @@ class Application(Router):
 
     def __call__(
         self, environ: WSGIEnvironment, start_response: StartResponse
-    ) -> list[bytes]:
+    ) -> Iterable[bytes]:
         path = prepare_path(environ["PATH_INFO"])
 
         path_template: str | None = self._get_path_template(path)
@@ -70,7 +72,9 @@ class Application(Router):
         status = get_status_code_and_phrase(response.status_code)
         headers = prepare_headers(response)
         start_response(status, headers)
-        return [response.body]
+        if isinstance(response, (StreamingResponse, FileResponse)):
+            return response.iter_content()
+        return (response.body,)
 
     def _get_path_template(self, path: str) -> str | None:
         for router in self.chain_tail:

@@ -12,29 +12,6 @@ except ImportError:
     jinja2 = None
 
 
-class _TemplateResponse(HTMLResponse):
-    __slots__ = ()
-
-    def __init__(
-        self,
-        content: Any,
-        *,
-        status_code: int = HTTPStatus.OK,
-        headers: Mapping[str, str] | None = None,
-        media_type: str | None = None,
-        charset: str = "utf-8",
-    ) -> None:
-        if media_type is None:
-            media_type = "text/html"
-        super().__init__(
-            content,
-            status_code=status_code,
-            headers=headers,
-            media_type=media_type,
-            charset=charset,
-        )
-
-
 class Jinja2Templates:
     __slots__ = ("_env",)
 
@@ -57,7 +34,7 @@ class Jinja2Templates:
         elif env is not None:
             self._env = env
 
-    def TemplateResponse(
+    def render_html_response(
         self,
         name: str,
         context: dict[str, Any] | None = None,
@@ -66,10 +43,10 @@ class Jinja2Templates:
         headers: Mapping[str, str] | None = None,
         media_type: str | None = None,
         charset: str = "utf-8",
-    ) -> _TemplateResponse:
+    ) -> HTMLResponse:
         template = self.get_template(name)
         content = template.render(**context)
-        return _TemplateResponse(
+        return HTMLResponse(
             content,
             status_code=status_code,
             headers=headers,

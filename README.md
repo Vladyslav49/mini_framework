@@ -4,13 +4,6 @@ This is a project for educational purposes only. It is not intended to be used i
 ## Mini Framework
 This is a mini framework for building web applications in Python.
 
-## Features
-- [x] Routing
-- [x] Routers
-- [x] Middlewares
-- [x] Filters
-- [x] Dependency Injection
-
 ## Usage
 ```python
 # app.py
@@ -26,10 +19,10 @@ def index():
 ```
 
 ### Details
-It is inspired by [aiogram](https://github.com/aiogram/aiogram)
+It is inspired by [aiogram](https://github.com/aiogram/aiogram) and [starlette](https://github.com/encode/starlette)
 
 ## Running the application
-You need to install [gunicorn](https://gunicorn.org/) or any other WSGI server to run the application.
+You need to install [gunicorn](https://github.com/benoitc/gunicorn) or any other WSGI server to run the application.
 
 ### Example using gunicorn
 ```bash

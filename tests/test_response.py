@@ -1,6 +1,7 @@
 import itertools
 from contextlib import AbstractContextManager, nullcontext
 from http import HTTPStatus
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -10,6 +11,7 @@ from mini_framework.exceptions import HTTPException
 from mini_framework.responses import (
     get_status_code_and_phrase,
     PlainTextResponse,
+    FileResponse,
 )
 
 
@@ -95,3 +97,68 @@ def test_get_status_code_and_phrase(
         assert (
             get_status_code_and_phrase(status) == f"{status} {status.phrase}"
         )
+
+
+@pytest.fixture()
+def file(tmp_path: Path) -> Path:
+    file = tmp_path / "file.txt"
+    file.touch()
+    return file
+
+
+def test_valid_file_response(file: Path) -> None:
+    file.write_text("Hello, World!")
+    response = FileResponse(file)
+
+    assert response.path == file
+    assert response.headers["Content-Length"] == "13"
+    assert (
+        response.headers["Content-Disposition"]
+        == 'attachment; filename="file.txt"'
+    )
+
+
+def test_file_not_found() -> None:
+    with pytest.raises(
+        FileNotFoundError, match="File 'nonexistent_file.txt' not found"
+    ):
+        FileResponse("nonexistent_file.txt")
+
+
+def test_invalid_file_path(tmp_path: Path) -> None:
+    directory = tmp_path / "directory"
+    directory.mkdir()
+
+    with pytest.raises(
+        ValueError, match=f"'{directory}' is not a valid file path"
+    ):
+        FileResponse(directory)
+
+
+def test_custom_filename(file: Path) -> None:
+    response = FileResponse(file, filename="custom_name.txt")
+
+    assert response.filename == "custom_name.txt"
+    assert (
+        'filename="custom_name.txt"' in response.headers["Content-Disposition"]
+    )
+
+
+def test_stat_headers(file: Path) -> None:
+    mocked_stat_result = Mock()
+    mocked_stat_result.st_size = 13
+    mocked_stat_result.st_mtime = 1234567890
+    response = FileResponse(file, stat_result=mocked_stat_result)
+
+    assert response.stat_result == mocked_stat_result
+    assert response.headers["Content-Length"] == "13"
+    assert response.headers["Last-Modified"] == "Fri, 13 Feb 2009 23:31:30 GMT"
+    assert "Etag" in response.headers
+
+
+def test_iter_content(file: Path) -> None:
+    file.write_text("Hello, World!")
+    response = FileResponse(file)
+    content = b"".join(response.iter_content())
+
+    assert content == b"Hello, World!"
