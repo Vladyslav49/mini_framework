@@ -5,6 +5,13 @@ from io import BytesIO
 from unittest.mock import patch
 from wsgiref.types import WSGIEnvironment
 
+from mini_framework.datastructures import Address
+
+try:
+    import multipart
+except ImportError:
+    multipart = None
+
 import pytest
 
 import mini_framework.request
@@ -14,17 +21,10 @@ from mini_framework.request import (
     extract_path_params_from_template,
     parse_query_params,
     Request,
-    validate_path,
-    prepare_path,
+    _validate_path,
+    ensure_trailing_slash,
 )
 from mini_framework.responses import PlainTextResponse, prepare_headers
-
-
-def test_create_request() -> None:
-    environ = {}
-    path_params = {}
-
-    Request(environ, path_params=path_params)
 
 
 @pytest.mark.parametrize(
@@ -165,22 +165,21 @@ def test_extract_path_params_from_template(
 def test_prepare_headers(
     headers: dict[str, str], expected_prepared_headers: list[tuple[str, str]]
 ) -> None:
-    response = PlainTextResponse(
-        "Hello, World!", charset="utf-8", headers=headers
-    )
+    response = PlainTextResponse("Hello, World!", headers=headers)
+    body = response.render()
 
-    prepared_headers = prepare_headers(response)
+    prepared_headers = prepare_headers(response, body)
 
     assert prepared_headers == expected_prepared_headers
 
 
 def test_prepare_headers_with_cookies() -> None:
-    content = "Hello, World!"
-    response = PlainTextResponse(content)
+    response = PlainTextResponse("Hello, World!")
     response.set_cookie("name", "john")
     response.set_cookie("age", "20")
+    body = response.render()
 
-    headers = prepare_headers(response)
+    headers = prepare_headers(response, body)
 
     assert headers[0][1] == "name=john; Path=/; SameSite=lax"
     assert headers[1][1] == "age=20; Path=/; SameSite=lax"
@@ -188,7 +187,7 @@ def test_prepare_headers_with_cookies() -> None:
 
 @pytest.mark.parametrize("path", ["/home/", "/home"])
 def test_prepare_path(path: str) -> None:
-    assert prepare_path(path) == "/home/"
+    assert ensure_trailing_slash(path) == "/home/"
 
 
 @pytest.mark.parametrize(
@@ -199,9 +198,9 @@ def test_prepare_path(path: str) -> None:
         (
             {"QUERY_STRING": "foo=bar&baz=qux&baz=quux&corge="},
             {
-                "foo": ["bar"],
+                "foo": "bar",
                 "baz": ["qux", "quux"],
-                "corge": [""],
+                "corge": "",
             },
         ),
     ],
@@ -209,7 +208,9 @@ def test_prepare_path(path: str) -> None:
 def test_parse_query_params(
     environ: WSGIEnvironment, expected_query_params: dict[str, str | list[str]]
 ) -> None:
-    query_params = parse_query_params(environ)
+    query_params = parse_query_params(
+        environ.get("QUERY_STRING", ""),
+    )
 
     assert query_params == expected_query_params
 
@@ -230,7 +231,7 @@ def test_validate_path(
     path: str, params: list[str], contextmanager: AbstractContextManager
 ) -> None:
     with contextmanager:
-        validate_path(path, params)
+        _validate_path(path, params)
 
 
 def test_form() -> None:
@@ -265,3 +266,26 @@ def test_form_when_multipart_is_not_installed() -> None:
             request.form()
 
     importlib.reload(mini_framework.request)
+
+
+@pytest.mark.parametrize(
+    "environ, expected_client",
+    [
+        ({}, None),
+        ({"REMOTE_ADDR": "127.0.0.1"}, None),
+        ({"REMOTE_PORT": 8000}, None),
+        (
+            {"REMOTE_ADDR": "127.0.0.1", "REMOTE_PORT": 8000},
+            Address(host="127.0.0.1", port=8000),
+        ),
+    ],
+)
+def test_client(
+    environ: WSGIEnvironment,
+    expected_client: Address | None,
+) -> None:
+    path_params = {}
+
+    request = Request(environ, path_params=path_params)
+
+    assert request.client == expected_client

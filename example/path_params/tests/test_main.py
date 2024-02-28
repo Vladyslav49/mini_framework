@@ -24,13 +24,6 @@ def test_hello_from_user_with_path_params(client: Client) -> None:
     assert response.text == "Hello, John from Mary!"
 
 
-def test_hi_with_path_params(client: Client) -> None:
-    response = client.get("/hi/john/")
-
-    assert response.status_code == HTTPStatus.OK
-    assert response.text == "Hi, John!"
-
-
 def test_hello(client: Client) -> None:
     response = client.get("/hello/")
 

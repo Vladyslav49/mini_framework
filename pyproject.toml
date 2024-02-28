@@ -9,31 +9,29 @@ packages = [{include = "mini_framework", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 multidict = "^6.0.5"
+pydantic = "^2.6.2"
+jinja2 = { version = "^3.1.3", optional = true }
+python-multipart = { version = "^0.0.9", optional = true }
 
-[tool.poetry.group.templates]
+[tool.poetry.extras]
+templates = ["jinja2"]
+multipart = ["python-multipart"]
+
+[tool.poetry.group.test]
 optional = true
 
-[tool.poetry.group.templates.dependencies]
-jinja2 = "^3.1.3"
-
-[tool.poetry.group.multipart]
-optional = true
-
-[tool.poetry.group.multipart.dependencies]
-python-multipart = "^0.0.6"
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.4"
+pytest-random-order = "^1.1.1"
+pytest-repeat = "^0.9.3"
+httpx = "^0.26.0"
 
 [tool.poetry.group.dev]
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.2.1"
-pyright = "^1.1.348"
-pytest = "^7.4.4"
-httpx = "^0.26.0"
-pre-commit = "^3.6.0"
 pytest-cov = "^4.1.0"
-pytest-random-order = "^1.1.1"
-pytest-repeat = "^0.9.3"
+pre-commit = "^3.6.0"
 
 [tool.ruff]
 line-length = 79

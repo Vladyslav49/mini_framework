@@ -7,6 +7,6 @@ app = Application()
 
 @app.post("/")
 def index(request: Request):
-    if body := request.body.decode():
-        return PlainTextResponse(f"Hello, {body}!")
+    if name := request.text:
+        return PlainTextResponse(f"Hello, {name}!")
     return PlainTextResponse("Hello, Anonymous!")

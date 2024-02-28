@@ -1,13 +1,12 @@
 from contextlib import AbstractContextManager, nullcontext
 from http import HTTPStatus
-from typing import Any, NoReturn
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
 
 from mini_framework import Application
-from mini_framework.errors.error import Error
 from mini_framework.exceptions import HTTPException
 from mini_framework.filters.exception import (
     ExceptionTypeFilter,
@@ -33,13 +32,13 @@ def test_register_error_via_decorator(app: Application) -> None:
     assert any(error.callback is error_handler for error in app.error)
 
 
-def test_propagate_error(app: Application) -> None:
+def test_propagate_error(app: Application, mock_request: Mock) -> None:
     @app.error()
     def error(exception: Exception):
         assert isinstance(exception, Exception)
         assert str(exception) == "Error"
 
-    app.propagate_error(Exception("Error"))
+    app.propagate_error(Exception("Error"), request=mock_request)
 
 
 def test_errors_is_alias_for_error(app: Application) -> None:
@@ -57,7 +56,7 @@ def test_error(app: Application, mock_request: Mock) -> None:
 
     response = app.propagate(mock_request)
 
-    assert response.body == "Error".encode()
+    assert response.content == "Error"
 
 
 def test_multiple_errors(app: Application, mock_request: Mock) -> None:
@@ -75,7 +74,7 @@ def test_multiple_errors(app: Application, mock_request: Mock) -> None:
 
     response = app.propagate(mock_request)
 
-    assert response.body == "Error".encode()
+    assert response.content == "Error"
 
 
 def test_do_not_handle_error(app: Application, mock_request: Mock) -> None:
@@ -102,7 +101,7 @@ def test_handle_error_by_type(app: Application, mock_request: Mock) -> None:
 
     response = app.propagate(mock_request)
 
-    assert response.body == "Error".encode()
+    assert response.content == "Error"
 
 
 def test_error_with_root_filter(app: Application, mock_request: Mock) -> None:
@@ -139,7 +138,7 @@ def test_error_middleware(app: Application, mock_request: Mock) -> None:
 
     response = app.propagate(mock_request)
 
-    assert response.body == "Error".encode()
+    assert response.content == "Error"
 
 
 def test_error_outer_middleware(app: Application, mock_request: Mock) -> None:
@@ -161,7 +160,7 @@ def test_error_outer_middleware(app: Application, mock_request: Mock) -> None:
 
     response = app.propagate(mock_request)
 
-    assert response.body == "Error".encode()
+    assert response.content == "Error"
 
 
 def test_error_with_filter(app: Application, mock_request: Mock) -> None:
@@ -175,11 +174,7 @@ def test_error_with_filter(app: Application, mock_request: Mock) -> None:
 
     response = app.propagate(mock_request)
 
-    assert response.body == "Error".encode()
-
-
-def test_create_error() -> None:
-    Error(callback=lambda: None)
+    assert response.content == "Error"
 
 
 @pytest.mark.parametrize(
@@ -253,7 +248,7 @@ def test_error_http_exception_status_code_filter(
     app: Application, mock_request: Mock
 ) -> None:
     @app.get("/")
-    def index() -> NoReturn:
+    def index():
         raise HTTPException(status_code=HTTPStatus.IM_A_TEAPOT)
 
     @app.error(HTTPExceptionStatusCodeFilter(HTTPStatus.IM_A_TEAPOT))
@@ -263,35 +258,35 @@ def test_error_http_exception_status_code_filter(
     response = app.propagate(mock_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.body == "Error".encode()
+    assert response.content == "Error"
 
 
 def test_error_http_exception_status_code_filter_with_wrong_status_code(
     app: Application, mock_request: Mock
 ) -> None:
     @app.get("/")
-    def index() -> NoReturn:
+    def index():
         raise HTTPException(status_code=HTTPStatus.IM_A_TEAPOT)
 
     @app.error(HTTPExceptionStatusCodeFilter(HTTPStatus.OK))
-    def error() -> NoReturn:
+    def error():
         assert False  # noqa: B011
 
     response = app.propagate(mock_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.body == HTTPStatus.IM_A_TEAPOT.phrase.encode()
+    assert response.content == {"detail": HTTPStatus.IM_A_TEAPOT.phrase}
 
 
 def test_error_http_exception_status_code_filter_with_wrong_exception_type(
     app: Application, mock_request: Mock
 ) -> None:
     @app.get("/")
-    def index() -> NoReturn:
+    def index():
         raise Exception("Error in index")
 
     @app.error(HTTPExceptionStatusCodeFilter(HTTPStatus.IM_A_TEAPOT))
-    def error() -> NoReturn:
+    def error():
         assert False  # noqa: B011
 
     with pytest.raises(Exception, match="Error in index"):
@@ -300,11 +295,11 @@ def test_error_http_exception_status_code_filter_with_wrong_exception_type(
 
 def test_skip_route(app: Application, mock_request: Mock) -> None:
     @app.get("/")
-    def index() -> NoReturn:
+    def index():
         raise Exception("Error in index")
 
     @app.error()
-    def error() -> NoReturn:
+    def error():
         raise SkipRoute
 
     with pytest.raises(Exception, match="Error in index"):

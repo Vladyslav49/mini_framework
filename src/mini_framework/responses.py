@@ -1,6 +1,6 @@
 import hashlib
-import json
 import os
+import json
 from collections.abc import Mapping, Iterable
 from datetime import datetime
 from email.utils import format_datetime, formatdate
@@ -16,7 +16,13 @@ from multidict import CIMultiDict
 
 
 class Response:
-    __slots__ = ("body", "status_code", "headers", "media_type", "charset")
+    __slots__ = (
+        "status_code",
+        "headers",
+        "media_type",
+        "charset",
+        "content",
+    )
 
     def __init__(
         self,
@@ -33,7 +39,7 @@ class Response:
         self.headers = CIMultiDict(headers)
         self.media_type = media_type
         self.charset = charset
-        self.body = self.render(content)
+        self.content = content
 
     def set_cookie(
         self,
@@ -94,12 +100,12 @@ class Response:
             samesite=samesite,
         )
 
-    def render(self, content: Any) -> bytes:
-        if content is None:
+    def render(self) -> bytes:
+        if self.content is None:
             return b""
-        if isinstance(content, bytes):
-            return content
-        return content.encode(self.charset)
+        if isinstance(self.content, bytes):
+            return self.content
+        return self.content.encode(self.charset)
 
 
 class PlainTextResponse(Response):
@@ -170,9 +176,11 @@ class JSONResponse(Response):
             charset=charset,
         )
 
-    def render(self, content: Any) -> bytes:
+    def render(self) -> bytes:
+        if isinstance(self.content, bytes):
+            return self.content
         return json.dumps(
-            content,
+            self.content,
             ensure_ascii=False,
             allow_nan=False,
             indent=None,
@@ -230,7 +238,7 @@ class FileResponse(Response):
         self,
         path: str | PathLike[str],
         *,
-        status_code: int = 200,
+        status_code: int = HTTPStatus.OK,
         headers: Mapping[str, str] | None = None,
         media_type: str | None = None,
         filename: str | None = None,
@@ -284,16 +292,14 @@ class FileResponse(Response):
 
 
 def get_status_code_and_phrase(status_code: int) -> str:
-    """Get status code and phrase for a given status code."""
     if status_code not in responses:
         raise ValueError(f"Invalid status code: {status_code}")
     return f"{status_code} {responses[status_code]}"
 
 
-def prepare_headers(response: Response) -> list[tuple[str, str]]:
-    """Prepare headers for a given response."""
+def prepare_headers(response: Response, body: bytes) -> list[tuple[str, str]]:
     response.headers.setdefault(
         "Content-Type", f"{response.media_type}; charset={response.charset}"
     )
-    response.headers.setdefault("Content-Length", str(len(response.body)))
+    response.headers.setdefault("Content-Length", str(len(body)))
     return list(response.headers.items())

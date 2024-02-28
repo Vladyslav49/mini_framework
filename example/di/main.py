@@ -28,8 +28,3 @@ def index(
     middleware_data: str,
 ):
     return PlainTextResponse("Hello, World!")
-
-
-@app.get("/hello/{name}/")
-def hello(name: str):
-    return PlainTextResponse(f"Hello, {name}!")

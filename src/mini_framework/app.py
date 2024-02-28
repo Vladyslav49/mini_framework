@@ -3,31 +3,51 @@ from http import HTTPStatus
 from typing import Any, Final
 from wsgiref.types import StartResponse, WSGIEnvironment
 
+from mini_framework.validators.base import Validator
 from mini_framework.middlewares.errors import ErrorsMiddleware
-from mini_framework.request import extract_path_params, Request, prepare_path
+from mini_framework.request import (
+    extract_path_params,
+    Request,
+    ensure_trailing_slash,
+)
 from mini_framework.responses import (
     get_status_code_and_phrase,
-    PlainTextResponse,
     prepare_headers,
     Response,
     StreamingResponse,
     FileResponse,
+    JSONResponse,
 )
 from mini_framework.router import Router
 from mini_framework.routes.manager import UNHANDLED
 from mini_framework.routes.route import Route
+from mini_framework.validators.pydantic import PydanticValidator
 
-_NOT_FOUND_RESPONSE: Final[PlainTextResponse] = PlainTextResponse(
-    HTTPStatus.NOT_FOUND.phrase, status_code=HTTPStatus.NOT_FOUND
+_NOT_FOUND_RESPONSE: Final[JSONResponse] = JSONResponse(
+    {"detail": HTTPStatus.NOT_FOUND.phrase},
+    status_code=HTTPStatus.NOT_FOUND,
 )
 
 
 class Application(Router):
-    __slots__ = ("_workflow_data",)
+    __slots__ = ("_workflow_data", "_validator")
 
-    def __init__(self, *, name: str = "Application", **kwargs: Any) -> None:
-        super().__init__(name=name)
+    def __init__(
+        self,
+        *,
+        name: str = "Application",
+        prefix: str = "",
+        default_response_class: type[Response] = JSONResponse,
+        validator: Validator = PydanticValidator(),
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            name=name,
+            prefix=prefix,
+            default_response_class=default_response_class,
+        )
         self._workflow_data: dict[str, Any] = kwargs
+        self._validator = validator
 
         self.route.outer_middleware.register(ErrorsMiddleware(self))
 
@@ -46,14 +66,12 @@ class Application(Router):
 
     @parent_router.setter
     def parent_router(self, router: Router) -> None:
-        raise RuntimeError(
-            "Application can not be attached to another Router."
-        )
+        raise RuntimeError("Application can not be attached to another Router")
 
     def __call__(
         self, environ: WSGIEnvironment, start_response: StartResponse
     ) -> Iterable[bytes]:
-        path = prepare_path(environ["PATH_INFO"])
+        path = ensure_trailing_slash(environ["PATH_INFO"])
 
         path_template: str | None = self._get_path_template(path)
 
@@ -64,17 +82,18 @@ class Application(Router):
 
             request = Request(environ, path_params=path_params)
 
-            response = self.propagate(request, **path_params)
+            response = self.propagate(request)
 
             if response is UNHANDLED:
                 response = _NOT_FOUND_RESPONSE
 
         status = get_status_code_and_phrase(response.status_code)
-        headers = prepare_headers(response)
+        body = response.render()
+        headers = prepare_headers(response, body)
         start_response(status, headers)
         if isinstance(response, (StreamingResponse, FileResponse)):
             return response.iter_content()
-        return (response.body,)
+        return (body,)
 
     def _get_path_template(self, path: str) -> str | None:
         for router in self.chain_tail:
@@ -91,18 +110,36 @@ class Application(Router):
 
     def propagate(self, request: Request, /, **kwargs: Any) -> Response:
         for router, route in self._get_routers_and_routes(request):
-            for tail_router in router.chain_tail:
-                response = self.route.wrap_outer_middleware(
-                    tail_router.route.trigger,
-                    {
-                        **self._workflow_data,
-                        **kwargs,
-                        "request": request,
-                        "route": route,
-                    },
+            if route.response_class is None:
+                response_obj = router.default_response_class(
+                    content=None, status_code=route.status_code
                 )
-                if response is not UNHANDLED:
-                    return response
+            else:
+                response_obj = route.response_class(
+                    content=None, status_code=route.status_code
+                )
+
+            response = self.route.wrap_outer_middleware(
+                router.route.trigger,
+                {
+                    **self._workflow_data,
+                    **kwargs,
+                    "request": request,
+                    "route": route,
+                    "router": router,
+                    "response": response_obj,
+                    "__validator__": self._validator,
+                },
+            )
+
+            if response is UNHANDLED:
+                continue
+
+            if not isinstance(response, Response):
+                response_obj.content = response
+                return response_obj
+
+            return response
 
         return UNHANDLED
 

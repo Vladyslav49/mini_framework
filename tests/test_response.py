@@ -1,5 +1,7 @@
 import itertools
 from contextlib import AbstractContextManager, nullcontext
+from datetime import datetime, timedelta, UTC
+from email.utils import format_datetime
 from http import HTTPStatus
 from pathlib import Path
 from unittest.mock import Mock
@@ -12,20 +14,23 @@ from mini_framework.responses import (
     get_status_code_and_phrase,
     PlainTextResponse,
     FileResponse,
+    JSONResponse,
 )
 
 
 @pytest.mark.parametrize(
-    "content, expected_body",
+    "content, expected_rendered_response",
     [
         (None, b""),
         ("hi", b"hi"),
     ],
 )
-def test_create_response(content: str, expected_body: bytes) -> None:
+def test_render_response(
+    content: str, expected_rendered_response: bytes
+) -> None:
     response = Response(content=content)
 
-    assert response.body == expected_body
+    assert response.render() == expected_rendered_response
 
 
 def test_status_code(app: Application, mock_request: Mock) -> None:
@@ -48,7 +53,7 @@ def test_http_exception(app: Application, mock_request: Mock) -> None:
     response = app.propagate(mock_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.body == HTTPStatus.IM_A_TEAPOT.phrase.encode()
+    assert response.content == {"detail": HTTPStatus.IM_A_TEAPOT.phrase}
 
 
 def test_http_exception_with_detail(
@@ -64,7 +69,7 @@ def test_http_exception_with_detail(
     response = app.propagate(mock_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.body == "I'm a teapot with detail".encode()
+    assert response.content == {"detail": "I'm a teapot with detail"}
 
 
 def test_http_exception_with_headers(
@@ -79,8 +84,15 @@ def test_http_exception_with_headers(
     response = app.propagate(mock_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
-    assert response.body == HTTPStatus.IM_A_TEAPOT.phrase.encode()
+    assert response.content == {"detail": HTTPStatus.IM_A_TEAPOT.phrase}
     assert response.headers["X-Header"] == "Value"
+
+
+def test_create_http_exception_with_invalid_status_code(
+    app: Application, mock_request: Mock
+) -> None:
+    with pytest.raises(ValueError, match="Invalid status code: 999"):
+        HTTPException(status_code=999)
 
 
 @pytest.mark.parametrize(
@@ -162,3 +174,53 @@ def test_iter_content(file: Path) -> None:
     content = b"".join(response.iter_content())
 
     assert content == b"Hello, World!"
+
+
+def test_set_cookie_with_expires() -> None:
+    response = Response(content=None)
+    expires = datetime.now(UTC) + timedelta(hours=1)
+
+    response.set_cookie("name", "John", expires=expires)
+
+    expires_gmt = format_datetime(expires, usegmt=True)
+
+    expected_cookie = f"name=John; expires={expires_gmt}; Path=/; SameSite=lax"
+
+    assert response.headers["Set-Cookie"] == expected_cookie
+
+
+def test_set_cookie_with_domain() -> None:
+    response = Response(content=None)
+    domain = "example.com"
+
+    response.set_cookie("name", "John", domain=domain)
+
+    expected_cookie = f"name=John; Domain={domain}; Path=/; SameSite=lax"
+
+    assert response.headers["Set-Cookie"] == expected_cookie
+
+
+def test_set_cookie_with_secure() -> None:
+    response = Response(content=None)
+
+    response.set_cookie("name", "John", secure=True)
+
+    expected_cookie = "name=John; Path=/; SameSite=lax; Secure"
+
+    assert response.headers["Set-Cookie"] == expected_cookie
+
+
+@pytest.mark.parametrize(
+    "response, expected_rendered_response",
+    [
+        (Response(b"Hello, World!"), b"Hello, World!"),
+        (
+            JSONResponse(b'{"message": "Hello, World!"}'),
+            b'{"message": "Hello, World!"}',
+        ),
+    ],
+)
+def test_render_response_with_bytes_content(
+    response: Response, expected_rendered_response: bytes
+) -> None:
+    assert response.render() == expected_rendered_response

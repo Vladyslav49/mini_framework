@@ -53,7 +53,7 @@ def test_multiple_routers_with_filters_propagation(
     if expected_result is UNHANDLED:
         assert response is UNHANDLED
     else:
-        assert response.body == expected_result.encode()
+        assert response.content == expected_result
 
     if filter1_return_value and filter2_return_value:
         mocked_filter1.assert_called_once()
@@ -78,7 +78,7 @@ def test_multiple_routers_with_filters_and_router_without_filters_propagation(
 
     response = app.propagate(mock_request)
 
-    assert response.body == "second".encode()
+    assert response.content == "second"
 
 
 def test_multiple_routers_and_filters_not_handled_propagation(
@@ -110,7 +110,7 @@ def test_multiple_routers_and_filters_not_handled_propagation(
 def test_router_filters_do_not_affect_to_another_router(
     app: Application, mock_request: Mock
 ) -> None:
-    mocked_callback = Mock()
+    mocked_callback = Mock(return_value=None)
 
     router1 = Router()
     router1.filter(lambda: False)
@@ -151,7 +151,7 @@ def test_router_filters_affect_to_sub_router(
 def test_filter_dependency_injection(
     app: Application, mock_request: Mock
 ) -> None:
-    mocked_callback = Mock()
+    mocked_callback = Mock(return_value=None)
 
     app.get("/", lambda route: route.path == "/")(mocked_callback)
 

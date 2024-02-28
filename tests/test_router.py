@@ -1,6 +1,40 @@
+from contextlib import nullcontext, AbstractContextManager
+
 import pytest
 
-from mini_framework import Application, Router
+from mini_framework import Application, Router, Response
+from mini_framework.responses import PlainTextResponse, JSONResponse
+
+
+def test_create_router_with_name() -> None:
+    router = Router(name="my_router")
+
+    assert router.name == "my_router"
+
+
+@pytest.mark.parametrize(
+    "prefix, contextmanager",
+    [
+        ("", nullcontext()),
+        (
+            "prefix",
+            pytest.raises(
+                ValueError, match="Prefix 'prefix' must start with '/'"
+            ),
+        ),
+        (
+            "/prefix/",
+            pytest.raises(
+                ValueError, match="Prefix '/prefix/' must not end with '/'"
+            ),
+        ),
+    ],
+)
+def test_create_router_with_prefix(
+    prefix: str, contextmanager: AbstractContextManager
+) -> None:
+    with contextmanager:
+        Router(prefix=prefix)
 
 
 def test_include_router(app: Application) -> None:
@@ -16,7 +50,7 @@ def test_include_application_to_router(app: Application) -> None:
 
     with pytest.raises(
         RuntimeError,
-        match="Application can not be attached to another Router.",
+        match="Application can not be attached to another Router",
     ):
         router.include_router(app)
 
@@ -92,3 +126,58 @@ def test_router_chain_tail() -> None:
     router2.include_router(router4)
 
     assert list(router1.chain_tail) == [router1, router2, router3, router4]
+
+
+def test_include_router_with_prefix(app: Application) -> None:
+    router = Router()
+
+    app.include_router(router, prefix="/prefix")
+
+    assert router.prefix == "/prefix"
+
+
+@pytest.mark.parametrize(
+    "prefix, contextmanager",
+    [
+        (
+            "prefix",
+            pytest.raises(
+                ValueError, match="Prefix 'prefix' must start with '/'"
+            ),
+        ),
+        (
+            "/prefix/",
+            pytest.raises(
+                ValueError, match="Prefix '/prefix/' must not end with '/'"
+            ),
+        ),
+    ],
+)
+def test_include_router_with_prefix_invalid_prefix(
+    app: Application, prefix: str, contextmanager: AbstractContextManager
+) -> None:
+    router = Router()
+
+    with contextmanager:
+        app.include_router(router, prefix=prefix)
+
+    assert router.prefix == ""
+
+
+@pytest.mark.parametrize(
+    "default_response_class, expected_default_response_class",
+    [
+        (None, JSONResponse),
+        (PlainTextResponse, PlainTextResponse),
+    ],
+)
+def test_include_router_with_default_response_class(
+    app: Application,
+    default_response_class: type[Response] | None,
+    expected_default_response_class: type[Response],
+) -> None:
+    router = Router()
+
+    app.include_router(router, default_response_class=default_response_class)
+
+    assert router.default_response_class == expected_default_response_class

@@ -1,4 +1,4 @@
-from typing import Any, NoReturn
+from typing import Any
 from unittest.mock import Mock
 
 from mini_framework import Application
@@ -66,7 +66,7 @@ def test_route_di_via_filter(app: Application, mock_request: Mock) -> None:
 
 def test_error_di_via_filter(app: Application, mock_request: Mock) -> None:
     @app.get("/")
-    def index() -> NoReturn:
+    def index():
         raise Exception
 
     def filter() -> dict[str, int]:

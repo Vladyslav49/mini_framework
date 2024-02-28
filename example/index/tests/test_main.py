@@ -7,4 +7,4 @@ def test_index(client: Client) -> None:
     response = client.get("/")
 
     assert response.status_code == HTTPStatus.OK
-    assert response.text == "Hello, World!"
+    assert response.json() == {"message": "Hello, World!"}

@@ -1,4 +1,5 @@
-from typing import Any, NoReturn
+from http import HTTPStatus
+from typing import Any
 from unittest.mock import Mock
 
 
@@ -110,8 +111,8 @@ def test_get_response_in_middleware(
     def middleware(call_next: CallNext, data: dict[str, Any]) -> None:
         response: Response = call_next(data)
         assert isinstance(response, Response)
-        assert response.status_code == 200
-        assert response.body == "Hello, World!".encode()
+        assert response.status_code == HTTPStatus.OK
+        assert response.content == "Hello, World!"
 
     @app.get("/")
     def index():
@@ -124,7 +125,7 @@ def test_skip_route_in_middleware(
     app: Application, mock_request: Mock
 ) -> None:
     @app.middleware
-    def middleware(call_next: CallNext, data: dict[str, Any]) -> NoReturn:
+    def middleware(call_next: CallNext, data: dict[str, Any]):
         raise SkipRoute
 
     @app.get("/")

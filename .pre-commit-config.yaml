@@ -2,46 +2,31 @@ fail_fast: true
 repos:
   - repo: local
     hooks:
-      - id: ruff-format
+      - id: format
         name: format
         entry: ruff format --diff
         language: python
+        always_run: true
         types:
           - python
-        always_run: true
         additional_dependencies:
-          - 'ruff==0.2.1'
-      - id: ruff-lint
+          - ruff
+      - id: lint
         name: lint
         entry: ruff check
         language: python
+        always_run: true
         types:
           - python
-        always_run: true
         additional_dependencies:
-          - 'ruff==0.2.1'
-      - id: pyright
-        name: type check
+          - ruff
+      - id: type-checker
+        name: type checker
         entry: pyright
         language: python
-        pass_filenames: false
         always_run: true
         types:
           - python
         additional_dependencies:
-          - 'pyright==1.1.348'
-      - id: pytest
-        name: test
-        entry: bash -c 'export PYTHONPATH=$PYTHONPATH:src/ && pytest --random-order --count=3'
-        language: python
-        pass_filenames: false
-        always_run: true
-        args: ['tests/', 'example/']
-        additional_dependencies:
-          - 'multidict==6.0.5'
-          - 'python-multipart==0.0.6'
-          - 'jinja2==3.1.3'
-          - 'httpx==0.26.0'
-          - 'pytest==7.4.4'
-          - 'pytest-random-order==1.1.1'
-          - 'pytest-repeat==0.9.3'
+          - pydantic
+          - pyright

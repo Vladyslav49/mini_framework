@@ -4,10 +4,12 @@ import re
 from collections.abc import Callable
 from http.cookies import SimpleCookie
 from typing import Any
-from urllib.parse import parse_qs
+from urllib.parse import parse_qsl
 from wsgiref.types import WSGIEnvironment
 
 from multidict import CIMultiDict
+
+from mini_framework.datastructures import FormData, Address
 
 try:
     import multipart
@@ -19,22 +21,6 @@ PATH_PARAM_PATTERN = (
     r"{([^{}]+?)}"  # Pattern to find path parameters in the path template
 )
 COMPILED_PATH_PARAM_PATTERN = re.compile(PATH_PARAM_PATTERN)
-
-
-class FormData:
-    __slots__ = ("_fields", "_files")
-
-    def __init__(self, *, fields: list["Field"], files: list["File"]) -> None:
-        self._fields = fields
-        self._files = files
-
-    @property
-    def fields(self) -> list["Field"]:
-        return self._fields
-
-    @property
-    def files(self) -> list["File"]:
-        return self._files
 
 
 class Request:
@@ -56,18 +42,26 @@ class Request:
         self._path_params: dict[str, str] = path_params
         self._body: bytes | None = None
         self._json: Any | None = None
-        self._query_params: dict[str, list[str]] | None = None
+        self._query_params: dict[str, str | list[str]] | None = None
         self._multipart: FormData | None = None
         self._headers: CIMultiDict | None = None
         self._cookies: dict[str, str] | None = None
 
     @property
     def path(self) -> str:
-        return prepare_path(self._environ["PATH_INFO"])
+        return ensure_trailing_slash(self._environ["PATH_INFO"])
 
     @property
     def method(self) -> str:
         return self._environ["REQUEST_METHOD"]
+
+    @property
+    def client(self) -> Address | None:
+        host = self._environ.get("REMOTE_ADDR")
+        port = self._environ.get("REMOTE_PORT")
+        if host and port:
+            return Address(host=host, port=port)
+        return None
 
     @property
     def body(self) -> bytes:
@@ -76,9 +70,15 @@ class Request:
         return self._body
 
     @property
-    def query_params(self) -> dict[str, list[str]]:
+    def text(self) -> str:
+        return self.body.decode()
+
+    @property
+    def query_params(self) -> dict[str, str | list[str]]:
         if self._query_params is None:
-            self._query_params = parse_query_params(self._environ)
+            self._query_params = parse_query_params(
+                self._environ.get("QUERY_STRING", ""),
+            )
         return self._query_params
 
     @property
@@ -88,9 +88,7 @@ class Request:
     @property
     def headers(self) -> CIMultiDict:
         if self._headers is None:
-            self._headers = CIMultiDict(
-                extract_headers(self._environ),
-            )
+            self._headers = extract_headers(self._environ)
         return self._headers
 
     @property
@@ -103,7 +101,7 @@ class Request:
 
     def json(self, loads: Callable[..., Any] = json.loads) -> Any:
         if self._json is None:
-            self._json = loads(self.body.decode())
+            self._json = loads(self.text)
         return self._json
 
     def form(self, *, chunk_size: int = 1048576) -> FormData:
@@ -112,6 +110,8 @@ class Request:
 
             fields: list["Field"] = []
             files: list["File"] = []
+
+            self._environ["wsgi.input"].seek(0)
 
             multipart.parse_form(
                 headers=self.headers,
@@ -125,28 +125,32 @@ class Request:
         return self._multipart
 
 
-def prepare_path(path: str) -> str:
+def ensure_trailing_slash(path: str) -> str:
     if path[-1] == "/":
         return path
     return path + "/"
 
 
-def parse_query_params(environ: WSGIEnvironment) -> dict[str, list[str]]:
-    query_string = environ.get("QUERY_STRING", "")
-    query_params = parse_qs(query_string, keep_blank_values=True)
-    return query_params
+def parse_query_params(query_string: str) -> dict[str, str | list[str]]:
+    parsed_result = {}
+    pairs = parse_qsl(query_string, keep_blank_values=True)
+    for name, value in pairs:
+        if name not in parsed_result:
+            parsed_result[name] = value
+        elif isinstance(parsed_result[name], list):
+            parsed_result[name].append(value)
+        else:
+            parsed_result[name] = [parsed_result[name], value]
+    return parsed_result
 
 
-def extract_headers(environ: WSGIEnvironment) -> dict[str, str]:
-    headers = {
-        key[5:].replace("_", "-").title(): value
-        for key, value in environ.items()
-        if key.startswith("HTTP_")
-    }
-    if "CONTENT_TYPE" in environ:
-        headers["Content-Type"] = environ["CONTENT_TYPE"]
-    if "CONTENT_LENGTH" in environ:
-        headers["Content-Length"] = environ["CONTENT_LENGTH"]
+def extract_headers(environ: WSGIEnvironment) -> CIMultiDict:
+    headers = CIMultiDict()
+    for key, value in environ.items():
+        if key.startswith("HTTP_"):
+            headers[key[5:].replace("_", "-").title()] = value
+        elif key in ("CONTENT_TYPE", "CONTENT_LENGTH"):
+            headers[key.replace("_", "-").title()] = value
     return headers
 
 
@@ -156,13 +160,13 @@ def extract_path_params_from_template(path: str) -> list[str]:
     if not params:
         return []
 
-    validate_params(path, params)
-    validate_path(path, params)
+    _validate_path_params(path, params)
+    _validate_path(path, params)
 
     return params
 
 
-def validate_params(path: str, params: list[str]) -> None:
+def _validate_path_params(path: str, params: list[str]) -> None:
     if len(params) != len(set(params)):
         raise ValueError(f"Invalid path: {path!r}. Parameters must be unique")
 
@@ -179,14 +183,14 @@ def validate_params(path: str, params: list[str]) -> None:
             )
 
 
-def validate_path(path: str, params: list[str]) -> None:
+def _validate_path(path: str, params: list[str]) -> None:
     try:
         path = path.format_map({param: "1" for param in params})
     except ValueError:
-        raise ValueError(f"Invalid path: {path!r}.") from None
+        raise ValueError(f"Invalid path: {path!r}") from None
 
     if ("{" in path) or ("}" in path):
-        raise ValueError(f"Invalid path: {path!r}.")
+        raise ValueError(f"Invalid path: {path!r}")
 
 
 def extract_path_params(path_template: str, path: str) -> dict[str, str]:

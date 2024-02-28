@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Iterator
-from http import HTTPMethod
-from typing import Optional
+from http import HTTPMethod, HTTPStatus
 
 from mini_framework.errors.manager import ErrorsManager
 from mini_framework.middlewares.base import Middleware
+from mini_framework.responses import Response, JSONResponse
 from mini_framework.routes.manager import RoutesManager
 from mini_framework.routes.route import CallbackType
 
@@ -11,6 +13,8 @@ from mini_framework.routes.route import CallbackType
 class Router:
     __slots__ = (
         "_name",
+        "_prefix",
+        "default_response_class",
         "_parent_router",
         "_sub_routers",
         "route",
@@ -18,8 +22,16 @@ class Router:
         "error",
     )
 
-    def __init__(self, *, name: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        name: str | None = None,
+        prefix: str = "",
+        default_response_class: type[Response] = JSONResponse,
+    ) -> None:
         self._name = name or hex(id(self))
+        self.prefix = prefix
+        self.default_response_class = default_response_class
 
         self._parent_router: Router | None = None
         self._sub_routers: list[Router] = []
@@ -32,11 +44,23 @@ class Router:
         return self._name
 
     @property
-    def parent_router(self) -> Optional["Router"]:
+    def prefix(self) -> str:
+        return self._prefix
+
+    @prefix.setter
+    def prefix(self, prefix: str) -> None:
+        if prefix and not prefix.startswith("/"):
+            raise ValueError(f"Prefix {prefix!r} must start with '/'")
+        if prefix.endswith("/"):
+            raise ValueError(f"Prefix {prefix!r} must not end with '/'")
+        self._prefix = prefix
+
+    @property
+    def parent_router(self) -> Router | None:
         return self._parent_router
 
     @parent_router.setter
-    def parent_router(self, router: "Router") -> None:
+    def parent_router(self, router: Router) -> None:
         if not isinstance(router, Router):
             raise ValueError(
                 f"router should be instance of Router not {type(router).__name__!r}"  # noqa: E501
@@ -60,23 +84,33 @@ class Router:
         self._parent_router = router
         router._sub_routers.append(self)
 
-    def include_router(self, router: "Router") -> "Router":
+    def include_router(
+        self,
+        router: Router,
+        *,
+        prefix: str | None = None,
+        default_response_class: type[Response] | None = None,
+    ) -> Router:
         if not isinstance(router, Router):
             raise ValueError(
                 f"router should be instance of Router not {type(router).__name__!r}"  # noqa: E501
             )
         router.parent_router = self
+        if prefix is not None:
+            router.prefix = prefix
+        if default_response_class is not None:
+            router.default_response_class = default_response_class
         return router
 
     @property
-    def chain_head(self) -> Iterator["Router"]:
+    def chain_head(self) -> Iterator[Router]:
         router: Router | None = self
         while router is not None:
             yield router
             router = router.parent_router
 
     @property
-    def chain_tail(self) -> Iterator["Router"]:
+    def chain_tail(self) -> Iterator[Router]:
         yield self
         for router in self._sub_routers:
             yield from router.chain_tail
@@ -100,47 +134,146 @@ class Router:
     def filter(self, *filters: CallbackType) -> None:
         self.route.filter(*filters)
 
-    def connect(
-        self, path: str, /, *filters: CallbackType
-    ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.CONNECT)
-
     def delete(
-        self, path: str, /, *filters: CallbackType
+        self,
+        path: str,
+        /,
+        *filters: CallbackType,
+        status_code: int = HTTPStatus.OK,
+        response_class: type[Response] | None = None,
+        response_model: type | None = None,
     ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.DELETE)
+        return self.route(
+            path,
+            *filters,
+            method=HTTPMethod.DELETE,
+            status_code=status_code,
+            response_class=response_class,
+            response_model=response_model,
+        )
 
     def get(
-        self, path: str, /, *filters: CallbackType
+        self,
+        path: str,
+        /,
+        *filters: CallbackType,
+        status_code: int = HTTPStatus.OK,
+        response_class: type[Response] | None = None,
+        response_model: type | None = None,
     ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.GET)
+        return self.route(
+            path,
+            *filters,
+            method=HTTPMethod.GET,
+            status_code=status_code,
+            response_class=response_class,
+            response_model=response_model,
+        )
 
     def head(
-        self, path: str, /, *filters: CallbackType
+        self,
+        path: str,
+        /,
+        *filters: CallbackType,
+        status_code: int = HTTPStatus.OK,
+        response_class: type[Response] | None = None,
+        response_model: type | None = None,
     ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.HEAD)
+        return self.route(
+            path,
+            *filters,
+            method=HTTPMethod.HEAD,
+            status_code=status_code,
+            response_class=response_class,
+            response_model=response_model,
+        )
 
     def options(
-        self, path: str, /, *filters: CallbackType
+        self,
+        path: str,
+        /,
+        *filters: CallbackType,
+        status_code: int = HTTPStatus.OK,
+        response_class: type[Response] | None = None,
+        response_model: type | None = None,
     ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.OPTIONS)
+        return self.route(
+            path,
+            *filters,
+            method=HTTPMethod.OPTIONS,
+            status_code=status_code,
+            response_class=response_class,
+            response_model=response_model,
+        )
 
     def patch(
-        self, path: str, /, *filters: CallbackType
+        self,
+        path: str,
+        /,
+        *filters: CallbackType,
+        status_code: int = HTTPStatus.OK,
+        response_class: type[Response] | None = None,
+        response_model: type | None = None,
     ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.PATCH)
+        return self.route(
+            path,
+            *filters,
+            method=HTTPMethod.PATCH,
+            status_code=status_code,
+            response_class=response_class,
+            response_model=response_model,
+        )
 
     def post(
-        self, path: str, /, *filters: CallbackType
+        self,
+        path: str,
+        /,
+        *filters: CallbackType,
+        status_code: int = HTTPStatus.OK,
+        response_class: type[Response] | None = None,
+        response_model: type | None = None,
     ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.POST)
+        return self.route(
+            path,
+            *filters,
+            method=HTTPMethod.POST,
+            status_code=status_code,
+            response_class=response_class,
+            response_model=response_model,
+        )
 
     def put(
-        self, path: str, /, *filters: CallbackType
+        self,
+        path: str,
+        /,
+        *filters: CallbackType,
+        status_code: int = HTTPStatus.OK,
+        response_class: type[Response] | None = None,
+        response_model: type | None = None,
     ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.PUT)
+        return self.route(
+            path,
+            *filters,
+            method=HTTPMethod.PUT,
+            status_code=status_code,
+            response_class=response_class,
+            response_model=response_model,
+        )
 
     def trace(
-        self, path: str, /, *filters: CallbackType
+        self,
+        path: str,
+        /,
+        *filters: CallbackType,
+        status_code: int = HTTPStatus.OK,
+        response_class: type[Response] | None = None,
+        response_model: type | None = None,
     ) -> Callable[[CallbackType], CallbackType]:
-        return self.route(path, *filters, method=HTTPMethod.TRACE)
+        return self.route(
+            path,
+            *filters,
+            method=HTTPMethod.TRACE,
+            status_code=status_code,
+            response_class=response_class,
+            response_model=response_model,
+        )

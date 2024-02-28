@@ -1,28 +1,41 @@
+from dataclasses import dataclass, field
 from collections.abc import Mapping
 from http import HTTPStatus
-
-from mini_framework.responses import PlainTextResponse, Response
+from http.client import responses
+from typing import Any
 
 
 class FrameworkError(Exception):
-    """Base class for all framework-related errors."""
+    """Base class for all framework-related errors"""
 
 
+@dataclass(kw_only=True)
 class HTTPException(FrameworkError):
-    def __init__(
-        self,
-        *,
-        status_code: int,
-        detail: str | None = None,
-        headers: Mapping[str, str] | None = None,
-        response_class: type[Response] = PlainTextResponse,
-    ) -> None:
-        if detail is None:
-            detail = HTTPStatus(status_code).phrase
-        self.status_code = status_code
-        self.detail = detail
-        self.headers = headers
-        self.response_class = response_class
+    status_code: int
+    detail: Any | None = None
+    headers: Mapping[str, str] | None = field(default=None, repr=False)
 
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"{type(self).__name__}(status_code={self.status_code!r}, detail={self.detail!r})"  # noqa: E501
+    def __post_init__(self) -> None:
+        if self.status_code not in responses:
+            raise ValueError(f"Invalid status code: {self.status_code}")
+        if self.detail is None:
+            self.detail = HTTPStatus(self.status_code).phrase
+
+    def __str__(self) -> str:  # pragma: no cover
+        return repr(self)
+
+
+@dataclass
+class _ValidationError(ValueError):
+    detail: Any
+    expected_type: type = field(kw_only=True)
+
+
+@dataclass
+class RequestValidationError(_ValidationError):
+    params: Any = field(kw_only=True)
+
+
+@dataclass
+class ResponseValidationError(_ValidationError):
+    value: Any = field(kw_only=True)

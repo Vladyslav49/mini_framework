@@ -19,7 +19,7 @@ class Jinja2Templates:
         self,
         directory: str | PathLike | Sequence[str | PathLike] | None = None,
         env: Optional[
-            "Environment"  # pyright: ignore [reportGeneralTypeIssues]
+            "Environment"  # pyright: ignore[reportGeneralTypeIssues]
         ] = None,
     ) -> None:
         assert jinja2 is not None, "jinja2 must be installed"
@@ -54,5 +54,5 @@ class Jinja2Templates:
             charset=charset,
         )
 
-    def get_template(self, name: str) -> "Template":  # pyright: ignore [reportGeneralTypeIssues]
+    def get_template(self, name: str) -> "Template":  # pyright: ignore[reportGeneralTypeIssues]
         return self._env.get_template(name)

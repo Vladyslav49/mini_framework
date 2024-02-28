@@ -1,4 +1,7 @@
+from typing import Annotated
+
 from mini_framework import Application
+from mini_framework.params import Path
 from mini_framework.request import Request
 from mini_framework.responses import PlainTextResponse
 
@@ -18,15 +21,8 @@ def hello_from_user_with_path_params(request: Request):
 
 
 @app.get("/hello/{name}/")
-def hello_with_path_params(request: Request):
-    name = request.path_params["name"].capitalize()
-    return PlainTextResponse(f"Hello, {name}!")
-
-
-@app.get("/hi/{name}/")
-def hi_with_path_params(request: Request):
-    name = request.path_params["name"].capitalize()
-    return PlainTextResponse(f"Hi, {name}!")
+def hello_with_path_params(name: Annotated[str, Path()]):
+    return PlainTextResponse(f"Hello, {name.capitalize()}!")
 
 
 @app.get("/hello/")

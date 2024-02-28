@@ -16,7 +16,7 @@ def test_cookies(client: Client) -> None:
 def test_set_cookies(client: Client) -> None:
     response = client.get("/set-cookies/")
 
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert response.text == "Cookies set"
 
     assert response.cookies["name"] == "John"
@@ -42,6 +42,13 @@ def test_clear_cookie_name(client: Client) -> None:
 
 def test_cookie_name_cleared(client: Client) -> None:
     response = client.get("/cookies/")
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {"age": "20"}
+
+
+def test_get_age(client: Client) -> None:
+    response = client.get("/age/")
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {"age": "20"}

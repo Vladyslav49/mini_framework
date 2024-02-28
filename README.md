@@ -19,7 +19,7 @@ def index():
 ```
 
 ### Details
-It is inspired by [aiogram](https://github.com/aiogram/aiogram) and [starlette](https://github.com/encode/starlette)
+It is inspired by [aiogram](https://github.com/aiogram/aiogram), [starlette](https://github.com/encode/starlette) and [fastapi](https://github.com/tiangolo/fastapi)
 
 ## Running the application
 You need to install [gunicorn](https://github.com/benoitc/gunicorn) or any other WSGI server to run the application.
