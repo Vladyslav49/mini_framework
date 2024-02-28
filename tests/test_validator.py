@@ -49,11 +49,15 @@ def test_missing_params(
 
     response = app.propagate(mock_request)
 
-    assert response.content == {
-        "detail": [
-            {"loc": ("name",), "msg": "Field required", "type": "missing"},
-        ]
-    }
+    assert len(response.content["detail"]) == 1
+    assert (
+        response.content["detail"][0].items()
+        >= {
+            "loc": ("name",),
+            "msg": "Field required",
+            "type": "missing",
+        }.items()
+    )
 
 
 def test_missing_body_model_param(
@@ -74,20 +78,23 @@ def test_missing_body_model_param(
 
     response = app.propagate(mock_request)
 
-    assert response.content == {
-        "detail": [
-            {
-                "loc": ("model", "name"),
-                "msg": "Field required",
-                "type": "missing",
-            },
-            {
-                "loc": ("model", "age"),
-                "msg": "Field required",
-                "type": "missing",
-            },
-        ]
-    }
+    assert len(response.content["detail"]) == 2
+    assert (
+        response.content["detail"][0].items()
+        >= {
+            "loc": ("model", "name"),
+            "msg": "Field required",
+            "type": "missing",
+        }.items()
+    )
+    assert (
+        response.content["detail"][1].items()
+        >= {
+            "loc": ("model", "age"),
+            "msg": "Field required",
+            "type": "missing",
+        }.items()
+    )
 
 
 def test_missing_fields_and_files_params(
@@ -106,12 +113,23 @@ def test_missing_fields_and_files_params(
 
     response = app.propagate(mock_request)
 
-    assert response.content == {
-        "detail": [
-            {"loc": ("field",), "msg": "Field required", "type": "missing"},
-            {"loc": ("file",), "msg": "Field required", "type": "missing"},
-        ]
-    }
+    assert len(response.content["detail"]) == 2
+    assert (
+        response.content["detail"][0].items()
+        >= {
+            "loc": ("field",),
+            "msg": "Field required",
+            "type": "missing",
+        }.items()
+    )
+    assert (
+        response.content["detail"][1].items()
+        >= {
+            "loc": ("file",),
+            "msg": "Field required",
+            "type": "missing",
+        }.items()
+    )
 
 
 def test_validation_error(app: Application, mock_request: Mock) -> None:

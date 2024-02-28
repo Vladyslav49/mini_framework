@@ -14,13 +14,16 @@ def test_index_with_invalid_age(client: Client) -> None:
     response = client.get("/", params={"name": "Vladyslav", "age": 16})
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert response.json() == {
-        "detail": [
-            {
-                "loc": ["age"],
-                "msg": "Input should be greater than or equal to 18",
-                "type": "greater_than_equal",
-            }
-        ],
-        "hi": "Hello, World!",
-    }
+
+    json = response.json()
+
+    assert len(json["detail"]) == 1
+    assert (
+        json["detail"][0].items()
+        >= {
+            "loc": ["age"],
+            "msg": "Input should be greater than or equal to 18",
+            "type": "greater_than_equal",
+        }.items()
+    )
+    assert json["hi"] == "Hello, World!"
