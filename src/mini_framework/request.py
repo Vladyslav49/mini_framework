@@ -26,24 +26,30 @@ COMPILED_PATH_PARAM_PATTERN = re.compile(PATH_PARAM_PATTERN)
 class Request:
     __slots__ = (
         "_environ",
+        "_path_params",
+        "_json_loads",
         "_body",
         "_json",
         "_query_params",
-        "_path_params",
-        "_multipart",
+        "_form_data",
         "_headers",
         "_cookies",
     )
 
     def __init__(
-        self, environ: WSGIEnvironment, *, path_params: dict[str, str]
+        self,
+        environ: WSGIEnvironment,
+        *,
+        path_params: dict[str, str],
+        json_loads: Callable[..., Any] = json.loads,
     ) -> None:
         self._environ = environ
-        self._path_params: dict[str, str] = path_params
+        self._path_params = path_params
+        self._json_loads = json_loads
         self._body: bytes | None = None
         self._json: Any | None = None
         self._query_params: dict[str, str | list[str]] | None = None
-        self._multipart: FormData | None = None
+        self._form_data: FormData | None = None
         self._headers: CIMultiDict | None = None
         self._cookies: dict[str, str] | None = None
 
@@ -99,13 +105,15 @@ class Request:
             )
         return self._cookies
 
-    def json(self, loads: Callable[..., Any] = json.loads) -> Any:
+    def json(self, loads: Callable[..., Any] | None = None) -> Any:
         if self._json is None:
-            self._json = loads(self.text)
+            if loads is None:
+                loads = self._json_loads
+            self._json = loads(self.body)
         return self._json
 
     def form(self, *, chunk_size: int = 1048576) -> FormData:
-        if self._multipart is None:
+        if self._form_data is None:
             assert multipart is not None, "python-multipart is not installed"
 
             fields: list["Field"] = []
@@ -121,8 +129,8 @@ class Request:
                 chunk_size=chunk_size,
             )
 
-            self._multipart = FormData(fields=fields, files=files)
-        return self._multipart
+            self._form_data = FormData(fields=fields, files=files)
+        return self._form_data
 
 
 def ensure_trailing_slash(path: str) -> str:
@@ -132,16 +140,16 @@ def ensure_trailing_slash(path: str) -> str:
 
 
 def parse_query_params(query_string: str) -> dict[str, str | list[str]]:
-    parsed_result = {}
+    result = {}
     pairs = parse_qsl(query_string, keep_blank_values=True)
     for name, value in pairs:
-        if name not in parsed_result:
-            parsed_result[name] = value
-        elif isinstance(parsed_result[name], list):
-            parsed_result[name].append(value)
+        if name not in result:
+            result[name] = value
+        elif isinstance(result[name], list):
+            result[name].append(value)
         else:
-            parsed_result[name] = [parsed_result[name], value]
-    return parsed_result
+            result[name] = [result[name], value]
+    return result
 
 
 def extract_headers(environ: WSGIEnvironment) -> CIMultiDict:

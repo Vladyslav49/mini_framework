@@ -2,7 +2,7 @@ import importlib
 import sys
 from contextlib import AbstractContextManager, nullcontext
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from wsgiref.types import WSGIEnvironment
 
 from mini_framework.datastructures import Address
@@ -289,3 +289,25 @@ def test_client(
     request = Request(environ, path_params=path_params)
 
     assert request.client == expected_client
+
+
+def test_request_json_with_default_json_loads() -> None:
+    environ = {"wsgi.input": BytesIO(b'{"message": "Hello, World!"}')}
+    path_params = {}
+    json_loads = Mock()
+    request = Request(environ, path_params=path_params, json_loads=json_loads)
+
+    request.json()
+
+    json_loads.assert_called_once_with(b'{"message": "Hello, World!"}')
+
+
+def test_request_json_with_custom_loads() -> None:
+    environ = {"wsgi.input": BytesIO(b'{"message": "Hello, World!"}')}
+    path_params = {}
+    loads = Mock()
+    request = Request(environ, path_params=path_params)
+
+    request.json(loads=loads)
+
+    loads.assert_called_once_with(b'{"message": "Hello, World!"}')

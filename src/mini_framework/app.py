@@ -1,4 +1,5 @@
-from collections.abc import Iterator, Iterable
+import json
+from collections.abc import Iterator, Iterable, Callable
 from http import HTTPStatus
 from typing import Any, Final
 from wsgiref.types import StartResponse, WSGIEnvironment
@@ -30,7 +31,7 @@ _NOT_FOUND_RESPONSE: Final[JSONResponse] = JSONResponse(
 
 
 class Application(Router):
-    __slots__ = ("_workflow_data", "_validator")
+    __slots__ = ("_workflow_data", "_validator", "_json_loads")
 
     def __init__(
         self,
@@ -39,6 +40,7 @@ class Application(Router):
         prefix: str = "",
         default_response_class: type[Response] = JSONResponse,
         validator: Validator = PydanticValidator(),
+        json_loads: Callable[..., Any] = json.loads,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -48,6 +50,7 @@ class Application(Router):
         )
         self._workflow_data: dict[str, Any] = kwargs
         self._validator = validator
+        self._json_loads = json_loads
 
         self.route.outer_middleware.register(ErrorsMiddleware(self))
 
@@ -80,7 +83,9 @@ class Application(Router):
         else:
             path_params = extract_path_params(path_template, path)
 
-            request = Request(environ, path_params=path_params)
+            request = Request(
+                environ, path_params=path_params, json_loads=self._json_loads
+            )
 
             response = self.propagate(request)
 
