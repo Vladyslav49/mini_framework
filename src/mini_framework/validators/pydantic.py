@@ -64,6 +64,5 @@ def _get_adapter(type_: type) -> TypeAdapter:
             validate_assignment=True,
             arbitrary_types_allowed=True,
             validate_default=True,
-            allow_inf_nan=False,
         )
     return TypeAdapter(type_)
