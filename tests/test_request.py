@@ -1,10 +1,12 @@
 import importlib
+import json
 import sys
 from contextlib import AbstractContextManager, nullcontext
 from io import BytesIO
-from unittest.mock import patch, Mock
+from unittest.mock import patch, create_autospec
 from wsgiref.types import WSGIEnvironment
 
+from mini_framework import Application
 from mini_framework.datastructures import Address
 
 try:
@@ -234,7 +236,7 @@ def test_validate_path(
         _validate_path(path, params)
 
 
-def test_form() -> None:
+def test_form(app: Application) -> None:
     environ = {
         "wsgi.input": BytesIO(b"a=1&b=2"),
         "HTTP_CONTENT_TYPE": "application/x-www-form-urlencoded",
@@ -242,7 +244,7 @@ def test_form() -> None:
 
     path_params = {}
 
-    request = Request(environ, path_params=path_params)
+    request = Request(app, environ, path_params=path_params)
 
     form = request.form()
 
@@ -252,11 +254,11 @@ def test_form() -> None:
     assert form.fields[1].value == b"2"
 
 
-def test_form_when_multipart_is_not_installed() -> None:
+def test_form_when_multipart_is_not_installed(app: Application) -> None:
     environ = {}
     path_params = {}
 
-    request = Request(environ, path_params=path_params)
+    request = Request(app, environ, path_params=path_params)
 
     with patch.dict(sys.modules, {"multipart": None}):
         importlib.reload(mini_framework.request)
@@ -281,33 +283,92 @@ def test_form_when_multipart_is_not_installed() -> None:
     ],
 )
 def test_client(
+    app: Application,
     environ: WSGIEnvironment,
     expected_client: Address | None,
 ) -> None:
     path_params = {}
 
-    request = Request(environ, path_params=path_params)
+    request = Request(app, environ, path_params=path_params)
 
     assert request.client == expected_client
 
 
-def test_request_json_with_default_json_loads() -> None:
+def test_request_json_with_default_json_loads(app: Application) -> None:
     environ = {"wsgi.input": BytesIO(b'{"message": "Hello, World!"}')}
     path_params = {}
-    json_loads = Mock()
-    request = Request(environ, path_params=path_params, json_loads=json_loads)
+    json_loads = create_autospec(json.loads)
+    request = Request(
+        app, environ, path_params=path_params, json_loads=json_loads
+    )
 
     request.json()
 
     json_loads.assert_called_once_with(b'{"message": "Hello, World!"}')
 
 
-def test_request_json_with_custom_loads() -> None:
+def test_request_json_with_custom_loads(app: Application) -> None:
     environ = {"wsgi.input": BytesIO(b'{"message": "Hello, World!"}')}
     path_params = {}
-    loads = Mock()
-    request = Request(environ, path_params=path_params)
+    loads = create_autospec(json.loads)
+    request = Request(app, environ, path_params=path_params)
 
     request.json(loads=loads)
 
     loads.assert_called_once_with(b'{"message": "Hello, World!"}')
+
+
+@pytest.mark.parametrize(
+    "environ, expected_host_url",
+    [
+        (
+            {
+                "wsgi.url_scheme": "http",
+                "SERVER_NAME": "example.com",
+                "SERVER_PORT": "80",
+            },
+            "http://example.com",
+        ),
+        (
+            {
+                "wsgi.url_scheme": "https",
+                "SERVER_NAME": "example.com",
+                "SERVER_PORT": "443",
+            },
+            "https://example.com",
+        ),
+        (
+            {
+                "wsgi.url_scheme": "http",
+                "SERVER_NAME": "example.com",
+                "SERVER_PORT": "8000",
+            },
+            "http://example.com:8000",
+        ),
+        (
+            {
+                "wsgi.url_scheme": "https",
+                "SERVER_NAME": "example.com",
+                "SERVER_PORT": "8000",
+            },
+            "https://example.com:8000",
+        ),
+        (
+            {"wsgi.url_scheme": "http", "HTTP_HOST": "example.com:8080"},
+            "http://example.com:8080",
+        ),
+        (
+            {"wsgi.url_scheme": "https", "HTTP_HOST": "example.com:8443"},
+            "https://example.com:8443",
+        ),
+    ],
+)
+def test_host_url(
+    app: Application,
+    environ: WSGIEnvironment,
+    expected_host_url: str,
+) -> None:
+    path_params = {}
+    request = Request(app, environ, path_params=path_params)
+
+    assert request.host_url == expected_host_url

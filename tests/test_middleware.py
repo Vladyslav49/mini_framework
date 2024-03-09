@@ -50,7 +50,7 @@ def test_outer_middleware(app: Application, mock_request: Mock) -> None:
         is_callback_called = True
 
     @app.get("/")
-    def index() -> None:
+    def index():
         assert False  # noqa: B011
 
     app.propagate(mock_request)
@@ -129,7 +129,7 @@ def test_skip_route_in_middleware(
         raise SkipRoute
 
     @app.get("/")
-    def index() -> None:
+    def index():
         assert False  # noqa: B011
 
     response = app.propagate(mock_request)

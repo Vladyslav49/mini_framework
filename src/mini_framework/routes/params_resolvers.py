@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import fields
 from typing import Any, get_args, TYPE_CHECKING
 
 from mini_framework.datastructures import UploadFile
@@ -12,20 +13,20 @@ if TYPE_CHECKING:
 def resolve_params(route: Route, request: Request) -> dict[str, Any]:
     params = {}
 
-    resolve_path_params(route, request, params=params)
-    resolve_query_params(route, request, params=params)
-    resolve_body_params(route, request, params=params)
-    resolve_body_model_params(route, request, params=params)
-    resolve_field_params(route, request, params=params)
-    resolve_file_params(route, request, params=params)
-    resolve_upload_file_params(route, request, params=params)
-    resolve_header_params(route, request, params=params)
-    resolve_cookie_params(route, request, params=params)
+    _resolve_path_params(route, request, params=params)
+    _resolve_query_params(route, request, params=params)
+    _resolve_body_params(route, request, params=params)
+    _resolve_body_model_params(route, request, params=params)
+    _resolve_field_params(route, request, params=params)
+    _resolve_file_params(route, request, params=params)
+    _resolve_upload_file_params(route, request, params=params)
+    _resolve_header_params(route, request, params=params)
+    _resolve_cookie_params(route, request, params=params)
 
     return params
 
 
-def resolve_path_params(
+def _resolve_path_params(
     route: Route,
     request: Request,
     *,
@@ -35,7 +36,7 @@ def resolve_path_params(
         params.update(request.path_params)
 
 
-def resolve_query_params(
+def _resolve_query_params(
     route: Route,
     request: Request,
     *,
@@ -45,7 +46,7 @@ def resolve_query_params(
         params.update(request.query_params)
 
 
-def resolve_body_params(
+def _resolve_body_params(
     route: Route,
     request: Request,
     *,
@@ -56,7 +57,7 @@ def resolve_body_params(
         params.update(body)
 
 
-def resolve_body_model_params(
+def _resolve_body_model_params(
     route: Route,
     request: Request,
     *,
@@ -77,17 +78,17 @@ def resolve_body_model_params(
             else:
                 embed = True
 
-            for name in model.__annotations__:
+            for field in fields(model):
                 try:
                     if embed:
-                        params[param][name] = body[param][name]
+                        params[param][field.name] = body[param][field.name]
                     else:
-                        params[param][name] = body[name]
+                        params[param][field.name] = body[field.name]
                 except KeyError:
                     pass
 
 
-def resolve_field_params(
+def _resolve_field_params(
     route: Route,
     request: Request,
     *,
@@ -105,7 +106,7 @@ def resolve_field_params(
                     params[param] = field.value.decode()
 
 
-def resolve_file_params(
+def _resolve_file_params(
     route: Route,
     request: Request,
     *,
@@ -127,7 +128,7 @@ def resolve_file_params(
                     params[param] = file.file_object.read()
 
 
-def resolve_upload_file_params(
+def _resolve_upload_file_params(
     route: Route,
     request: Request,
     *,
@@ -167,7 +168,7 @@ def resolve_upload_file_params(
             params[route.upload_files_param] = upload_files
 
 
-def resolve_header_params(
+def _resolve_header_params(
     route: Route,
     request: Request,
     *,
@@ -178,7 +179,7 @@ def resolve_header_params(
             params[key.lower()] = value
 
 
-def resolve_cookie_params(
+def _resolve_cookie_params(
     route: Route,
     request: Request,
     *,

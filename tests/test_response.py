@@ -14,7 +14,6 @@ from mini_framework.responses import (
     get_status_code_and_phrase,
     PlainTextResponse,
     FileResponse,
-    JSONResponse,
 )
 
 
@@ -23,6 +22,7 @@ from mini_framework.responses import (
     [
         (None, b""),
         ("hi", b"hi"),
+        (b"hi", b"hi"),
     ],
 )
 def test_render_response(
@@ -208,19 +208,3 @@ def test_set_cookie_with_secure() -> None:
     expected_cookie = "name=John; Path=/; SameSite=lax; Secure"
 
     assert response.headers["Set-Cookie"] == expected_cookie
-
-
-@pytest.mark.parametrize(
-    "response, expected_rendered_response",
-    [
-        (Response(b"Hello, World!"), b"Hello, World!"),
-        (
-            JSONResponse(b'{"message": "Hello, World!"}'),
-            b'{"message": "Hello, World!"}',
-        ),
-    ],
-)
-def test_render_response_with_bytes_content(
-    response: Response, expected_rendered_response: bytes
-) -> None:
-    assert response.render() == expected_rendered_response

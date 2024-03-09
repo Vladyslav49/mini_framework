@@ -7,6 +7,8 @@ Middleware: TypeAlias = Callable[[CallNext, dict[str, Any]], Any]
 
 
 class BaseMiddleware(ABC):
+    __slots__ = ()
+
     @abstractmethod
     def __call__(
         self, call_next: CallNext, data: dict[str, Any]

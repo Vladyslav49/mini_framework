@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable
 from http import HTTPMethod, HTTPStatus
+from typing import Any
 
 from mini_framework.errors.manager import ErrorsManager
 from mini_framework.middlewares.base import Middleware
 from mini_framework.responses import Response, JSONResponse
 from mini_framework.routes.manager import RoutesManager
-from mini_framework.routes.route import CallbackType
+from mini_framework.routes.route import CallbackType, NoMatchFound
 
 
 class Router:
@@ -103,14 +104,14 @@ class Router:
         return router
 
     @property
-    def chain_head(self) -> Iterator[Router]:
+    def chain_head(self) -> Iterable[Router]:
         router: Router | None = self
         while router is not None:
             yield router
             router = router.parent_router
 
     @property
-    def chain_tail(self) -> Iterator[Router]:
+    def chain_tail(self) -> Iterable[Router]:
         yield self
         for router in self._sub_routers:
             yield from router.chain_tail
@@ -120,6 +121,14 @@ class Router:
 
     def __repr__(self) -> str:
         return f"<{self}>"
+
+    def url_path_for(self, name: str, /, **path_params: Any) -> str:
+        for route in self.route:
+            try:
+                return route.url_path_for(name, **path_params)
+            except NoMatchFound:
+                pass
+        raise NoMatchFound(name, path_params)
 
     def outer_middleware(
         self, middleware: Middleware | None = None
@@ -139,6 +148,7 @@ class Router:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
@@ -146,6 +156,7 @@ class Router:
         return self.route(
             path,
             *filters,
+            name=name,
             method=HTTPMethod.DELETE,
             status_code=status_code,
             response_class=response_class,
@@ -157,6 +168,7 @@ class Router:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
@@ -164,6 +176,7 @@ class Router:
         return self.route(
             path,
             *filters,
+            name=name,
             method=HTTPMethod.GET,
             status_code=status_code,
             response_class=response_class,
@@ -175,6 +188,7 @@ class Router:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
@@ -182,6 +196,7 @@ class Router:
         return self.route(
             path,
             *filters,
+            name=name,
             method=HTTPMethod.HEAD,
             status_code=status_code,
             response_class=response_class,
@@ -193,6 +208,7 @@ class Router:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
@@ -200,6 +216,7 @@ class Router:
         return self.route(
             path,
             *filters,
+            name=name,
             method=HTTPMethod.OPTIONS,
             status_code=status_code,
             response_class=response_class,
@@ -211,6 +228,7 @@ class Router:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
@@ -218,6 +236,7 @@ class Router:
         return self.route(
             path,
             *filters,
+            name=name,
             method=HTTPMethod.PATCH,
             status_code=status_code,
             response_class=response_class,
@@ -229,6 +248,7 @@ class Router:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
@@ -236,6 +256,7 @@ class Router:
         return self.route(
             path,
             *filters,
+            name=name,
             method=HTTPMethod.POST,
             status_code=status_code,
             response_class=response_class,
@@ -247,6 +268,7 @@ class Router:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
@@ -254,6 +276,7 @@ class Router:
         return self.route(
             path,
             *filters,
+            name=name,
             method=HTTPMethod.PUT,
             status_code=status_code,
             response_class=response_class,
@@ -265,6 +288,7 @@ class Router:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
@@ -272,6 +296,7 @@ class Router:
         return self.route(
             path,
             *filters,
+            name=name,
             method=HTTPMethod.TRACE,
             status_code=status_code,
             response_class=response_class,

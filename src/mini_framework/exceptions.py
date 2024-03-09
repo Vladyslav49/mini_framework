@@ -5,12 +5,8 @@ from http.client import responses
 from typing import Any
 
 
-class FrameworkError(Exception):
-    """Base class for all framework-related errors"""
-
-
 @dataclass(kw_only=True)
-class HTTPException(FrameworkError):
+class HTTPException(Exception):
     status_code: int
     detail: Any | None = None
     headers: Mapping[str, str] | None = field(default=None, repr=False)
@@ -26,16 +22,16 @@ class HTTPException(FrameworkError):
 
 
 @dataclass
-class _ValidationError(ValueError):
+class ValidationError(ValueError):
     detail: Any
     expected_type: type = field(kw_only=True)
 
 
 @dataclass
-class RequestValidationError(_ValidationError):
+class RequestValidationError(ValidationError):
     params: Any = field(kw_only=True)
 
 
 @dataclass
-class ResponseValidationError(_ValidationError):
+class ResponseValidationError(ValidationError):
     value: Any = field(kw_only=True)

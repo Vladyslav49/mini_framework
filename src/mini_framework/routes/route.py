@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass, field, make_dataclass
 from http import HTTPMethod, HTTPStatus
-from typing import Any, _AnnotatedAlias, get_origin, get_args, TypeAlias  # pyright: ignore[reportAttributeAccessIssue]
+from typing import (
+    Any,
+    _AnnotatedAlias,  # pyright: ignore[reportAttributeAccessIssue]
+    get_origin,
+    get_args,
+    TypeAlias,
+)
 from unittest.mock import sentinel
 
-from mini_framework.routes.params_resolvers import resolve_params
-from mini_framework.validators.base import Validator
 from mini_framework.datastructures import UploadFile
 from mini_framework.params import (
     Path,
@@ -19,12 +25,16 @@ from mini_framework.params import (
     Param,
     BodyModel,
 )
-from mini_framework.request import Request
 from mini_framework.responses import Response
+from mini_framework.request import Request, extract_path_params_from_template
 
 CallbackType: TypeAlias = Callable[..., Any]
 
 MISSING = sentinel.MISSING
+
+
+class NoMatchFound(Exception):
+    pass
 
 
 @dataclass(slots=True, kw_only=True)
@@ -69,9 +79,11 @@ class HandlerObject(CallableObject):
 class Route(HandlerObject):
     path: str
     method: str
+    name: str
     status_code: int = HTTPStatus.OK
     response_class: type[Response] | None = None
     response_model: type | None = None
+    path_params_in_path: list[str] = field(init=False)
     model: type = field(init=False)
     return_annotation: Any = field(default=None)
     path_params: set[str] = field(default_factory=set)
@@ -94,7 +106,9 @@ class Route(HandlerObject):
             raise ValueError(
                 f"Method {self.method!r} is not valid HTTP method"
             )
-        super(HandlerObject, self).__post_init__()
+        super(Route, self).__post_init__()
+
+        self.path_params_in_path = extract_path_params_from_template(self.path)
 
         callback = inspect.unwrap(self.callback)
         signature = inspect.signature(callback)
@@ -155,20 +169,15 @@ class Route(HandlerObject):
 
         self.model = make_dataclass("Model", fields, frozen=True, slots=True)
 
-    def validate_params(
-        self, request: Request, validator: Validator
-    ) -> dict[str, Any]:
-        resolved_params = resolve_params(self, request)
-
-        obj = validator.validate_request(resolved_params, self.model)
-
-        validated_params = {}
-
-        for name in self.model.__annotations__:
-            value = getattr(obj, name)
-            validated_params[name] = value
-
-        return validated_params
+    def url_path_for(self, name: str, /, **path_params: Any) -> str:
+        if self.name != name:
+            raise NoMatchFound
+        if len(self.path_params_in_path) != len(path_params):
+            raise NoMatchFound
+        try:
+            return self.path.format_map(path_params)
+        except KeyError:  # occurs when path_params do not match
+            raise NoMatchFound
 
     def match(self, request: Request) -> bool:
         if request.method != self.method:

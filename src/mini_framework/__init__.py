@@ -3,7 +3,6 @@ __all__ = (
     "Router",
     "Request",
     "Response",
-    "FrameworkError",
     "HTTPException",
     "RequestValidationError",
     "ResponseValidationError",
@@ -14,7 +13,6 @@ from .router import Router
 from .request import Request
 from .responses import Response
 from .exceptions import (
-    FrameworkError,
     HTTPException,
     RequestValidationError,
     ResponseValidationError,

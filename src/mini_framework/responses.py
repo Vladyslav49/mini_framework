@@ -177,8 +177,6 @@ class JSONResponse(Response):
         )
 
     def render(self) -> bytes:
-        if isinstance(self.content, bytes):
-            return self.content
         return json.dumps(
             self.content,
             ensure_ascii=False,
@@ -223,10 +221,7 @@ class StreamingResponse(Response):
             headers=headers,
             media_type=media_type,
         )
-        self.body_iterator = content
-
-    def iter_content(self) -> Iterable[bytes]:
-        return self.body_iterator
+        self.body_iterator = iter(content)
 
 
 class FileResponse(Response):
@@ -301,5 +296,6 @@ def prepare_headers(response: Response, body: bytes) -> list[tuple[str, str]]:
     response.headers.setdefault(
         "Content-Type", f"{response.media_type}; charset={response.charset}"
     )
-    response.headers.setdefault("Content-Length", str(len(body)))
+    if not isinstance(response, (StreamingResponse, FileResponse)):
+        response.headers.setdefault("Content-Length", str(len(body)))
     return list(response.headers.items())

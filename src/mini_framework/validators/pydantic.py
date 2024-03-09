@@ -44,7 +44,9 @@ class PydanticValidator(Validator):
                 expected_type=return_type,
             )
 
-    def serialize_response(self, obj: Any, return_type: type, /) -> Any:
+    def prepare_response_for_serialization(
+        self, obj: Any, return_type: type, /
+    ) -> Any:
         if inspect.isclass(return_type) and (
             issubclass(return_type, Response) or return_type is Any
         ):

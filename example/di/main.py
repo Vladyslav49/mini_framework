@@ -20,11 +20,17 @@ def middleware(call_next: CallNext, data: dict[str, Any]) -> Any:
     return call_next(data)
 
 
-@app.get("/")
+@app.get("/", lambda: {"filter_data": "filter_data"})
 def index(
     some_data: str,
     some_value: int,
     outer_middleware_data: str,
     middleware_data: str,
+    filter_data: str,
 ):
+    assert some_data == "some_data"
+    assert some_value == 0
+    assert outer_middleware_data == "outer_middleware_data"
+    assert middleware_data == "middleware_data"
+    assert filter_data == "filter_data"
     return PlainTextResponse("Hello, World!")

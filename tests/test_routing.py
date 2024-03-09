@@ -6,8 +6,8 @@ from unittest.mock import Mock, create_autospec
 from multipart.multipart import File
 
 from mini_framework.datastructures import FormData, UploadFile
-from mini_framework.routes.params_resolvers import resolve_upload_file_params
-from mini_framework.routes.route import Route
+from mini_framework.routes.params_resolvers import _resolve_upload_file_params
+from mini_framework.routes.route import Route, NoMatchFound
 
 try:
     import multipart
@@ -61,7 +61,7 @@ def test_create_route(
     path: str, method: str, contextmanager: AbstractContextManager
 ) -> None:
     with contextmanager:
-        Route(callback=lambda: None, path=path, method=method)
+        Route(callback=lambda: None, path=path, method=method, name="name")
 
 
 @pytest.mark.parametrize(
@@ -90,6 +90,7 @@ def test_register_route_with_specified_method(
     app: Application, method: str, mock_request: Mock
 ) -> None:
     mocked_callback = Mock(return_value=None)
+    mocked_callback.__name__ = "name"
     app.route.register(mocked_callback, "/", method=method)
     mock_request.method = method
 
@@ -106,6 +107,7 @@ def test_register_route_with_dynamic_route(
     app: Application, mock_request: Mock, method: str, route: Callable
 ) -> None:
     mocked_callback = Mock(return_value=None)
+    mocked_callback.__name__ = "name"
     route(app, "/")(mocked_callback)
     mock_request.method = method
 
@@ -136,6 +138,7 @@ def test_successful_route_resolution(
     app: Application, mock_request: Mock
 ) -> None:
     mocked_callback = Mock(return_value=None)
+    mocked_callback.__name__ = "name"
 
     app.get("/", lambda: True)(mocked_callback)
 
@@ -148,6 +151,7 @@ def test_unsuccessful_route_resolution(
     app: Application, mock_request: Mock
 ) -> None:
     mocked_callback = Mock()
+    mocked_callback.__name__ = "name"
 
     app.get("/", lambda: False)(mocked_callback)
 
@@ -160,6 +164,7 @@ def test_successful_route_with_multiple_routes(
     app: Application, mock_request: Mock
 ) -> None:
     mocked_callback = Mock(return_value=None)
+    mocked_callback.__name__ = "name"
 
     app.get("/", lambda: True, lambda: True)(mocked_callback)
 
@@ -170,6 +175,7 @@ def test_successful_route_with_multiple_routes(
 
 def test_route_not_triggered(app: Application, mock_request: Mock) -> None:
     mocked_callback = Mock()
+    mocked_callback.__name__ = "name"
     mocked_filter = Mock(return_value=True)
 
     app.get("/", mocked_filter, lambda: False)(mocked_callback)
@@ -207,7 +213,9 @@ def test_get_routers_and_routes(app: Application, mock_request: Mock) -> None:
     app.include_router(router2)
     app.include_router(router3)
 
-    routers_and_routes = list(app._get_routers_and_routes(mock_request))
+    routers_and_routes = list(
+        app._get_matching_routers_and_routes(mock_request)
+    )
 
     routers_and_callbacks = [
         (router, route.callback) for router, route in routers_and_routes
@@ -241,7 +249,9 @@ def test_get_routers_not_found(
     app.include_router(router1)
     app.include_router(router2)
 
-    routers_and_routes = list(app._get_routers_and_routes(mock_request))
+    routers_and_routes = list(
+        app._get_matching_routers_and_routes(mock_request)
+    )
 
     assert routers_and_routes == []
 
@@ -268,57 +278,110 @@ def test_multiple_routers_propagation(
     mocked_filter.assert_not_called()
 
 
+@pytest.fixture()
+def route() -> Route:
+    return Route(
+        callback=lambda: None, path="/", method=HTTPMethod.GET, name="name"
+    )
+
+
 def test_resolve_upload_file_params_no_content_type_header_given_error(
-    mock_request: Mock,
+    mock_request: Mock, route: Route
 ) -> None:
     mock_request.form.side_effect = ValueError("No Content-Type header given!")
-    route = Route(callback=lambda: None, path="/", method=HTTPMethod.GET)
     route.upload_files = ["upload_file"]
     params = {}
 
-    resolve_upload_file_params(route, mock_request, params=params)
+    _resolve_upload_file_params(route, mock_request, params=params)
 
     assert params == {}
 
 
 def test_resolve_upload_file_params_unexpected_error_message(
-    mock_request: Mock,
+    mock_request: Mock, route: Route
 ) -> None:
     mock_request.form.side_effect = ValueError("Hello, World!")
-    route = Route(callback=lambda: None, path="/", method=HTTPMethod.GET)
     route.upload_files = ["upload_file"]
     params = {}
 
     with pytest.raises(ValueError, match="Hello, World!"):
-        resolve_upload_file_params(route, mock_request, params=params)
+        _resolve_upload_file_params(route, mock_request, params=params)
 
 
 def test_resolve_upload_file_params_no_files_specified(
-    mock_request: Mock,
+    mock_request: Mock, route: Route
 ) -> None:
     mock_request.form.return_value = FormData(fields=[], files=[])
-    route = Route(callback=lambda: None, path="/", method=HTTPMethod.GET)
     route.upload_files = ["upload_file"]
     params = {}
 
-    resolve_upload_file_params(route, mock_request, params=params)
+    _resolve_upload_file_params(route, mock_request, params=params)
 
     assert params == {}
 
 
 def test_resolve_upload_file_params_missing_one_file(
-    mock_request: Mock,
+    mock_request: Mock, route: Route
 ) -> None:
     file = create_autospec(File)
 
     mock_request.form.return_value = FormData(fields=[], files=[file])
 
-    route = Route(callback=lambda: None, path="/", method=HTTPMethod.GET)
     route.upload_files = ["upload_file_1", "upload_file_2"]
     params = {}
 
-    resolve_upload_file_params(route, mock_request, params=params)
+    _resolve_upload_file_params(route, mock_request, params=params)
 
     assert len(params) == 1
     assert isinstance(params["upload_file_1"], UploadFile)
     assert params["upload_file_1"].file is file.file_object
+
+
+def test_url_path(app: Application) -> None:
+    @app.get("/")
+    def index():
+        assert False  # noqa: B011
+
+    assert app.url_path_for("index") == "/"
+
+
+@pytest.mark.parametrize(
+    "name, contextmanager",
+    [
+        ("index", pytest.raises(NoMatchFound)),
+        ("super-index", nullcontext()),
+    ],
+)
+def test_url_path_with_explicit_name(
+    app: Application, name: str, contextmanager: AbstractContextManager
+) -> None:
+    @app.get("/", name="super-index")
+    def index():
+        assert False  # noqa: B011
+
+    with contextmanager:
+        assert app.url_path_for(name) == "/"
+
+
+@pytest.mark.parametrize(
+    "path_params, contextmanager",
+    [
+        ({}, pytest.raises(NoMatchFound)),
+        ({"id": 1}, pytest.raises(NoMatchFound)),
+        ({"name": "apple"}, pytest.raises(NoMatchFound)),
+        ({"id": 1, "text": "hi"}, pytest.raises(NoMatchFound)),
+        ({"name": "apple", "id": 1}, nullcontext()),
+        ({"id": 1, "name": "apple"}, nullcontext()),
+    ],
+)
+def test_url_path_with_path_params(
+    app: Application,
+    path_params: dict[str, str],
+    contextmanager: AbstractContextManager,
+) -> None:
+    @app.get("/items/{name}/{id}/")
+    def items():
+        assert False  # noqa: B011
+
+    with contextmanager:
+        assert app.url_path_for("items", **path_params) == "/items/apple/1/"

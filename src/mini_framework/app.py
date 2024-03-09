@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterator, Iterable, Callable
+from collections.abc import Iterable, Callable
 from http import HTTPStatus
 from typing import Any, Final
 from wsgiref.types import StartResponse, WSGIEnvironment
@@ -52,7 +52,7 @@ class Application(Router):
         self._validator = validator
         self._json_loads = json_loads
 
-        self.route.outer_middleware.register(ErrorsMiddleware(self))
+        self.route.outer_middleware.register(ErrorsMiddleware())
 
     def __getitem__(self, key: str) -> Any:
         return self._workflow_data[key]
@@ -84,7 +84,10 @@ class Application(Router):
             path_params = extract_path_params(path_template, path)
 
             request = Request(
-                environ, path_params=path_params, json_loads=self._json_loads
+                self,
+                environ,
+                path_params=path_params,
+                json_loads=self._json_loads,
             )
 
             response = self.propagate(request)
@@ -96,7 +99,9 @@ class Application(Router):
         body = response.render()
         headers = prepare_headers(response, body)
         start_response(status, headers)
-        if isinstance(response, (StreamingResponse, FileResponse)):
+        if isinstance(response, StreamingResponse):
+            return response.body_iterator
+        elif isinstance(response, FileResponse):
             return response.iter_content()
         return (body,)
 
@@ -114,7 +119,7 @@ class Application(Router):
         return None
 
     def propagate(self, request: Request, /, **kwargs: Any) -> Response:
-        for router, route in self._get_routers_and_routes(request):
+        for router, route in self._get_matching_routers_and_routes(request):
             if route.response_class is None:
                 response_obj = router.default_response_class(
                     content=None, status_code=route.status_code
@@ -129,11 +134,12 @@ class Application(Router):
                 {
                     **self._workflow_data,
                     **kwargs,
-                    "request": request,
-                    "route": route,
+                    "app": self,
                     "router": router,
+                    "route": route,
+                    "request": request,
                     "response": response_obj,
-                    "__validator__": self._validator,
+                    "validator": self._validator,
                 },
             )
 
@@ -148,11 +154,11 @@ class Application(Router):
 
         return UNHANDLED
 
-    def _get_routers_and_routes(
+    def _get_matching_routers_and_routes(
         self,
         request: Request,
         /,  # noqa: W504
-    ) -> Iterator[tuple[Router, Route]]:
+    ) -> Iterable[tuple[Router, Route]]:
         for router in self.chain_tail:
             for route in router.route:
                 if route.match(request):
@@ -161,12 +167,14 @@ class Application(Router):
     def propagate_error(
         self, exception: Exception, /, **kwargs: Any
     ) -> Response:
-        for tail_router in self.chain_tail:
+        for router in self.chain_tail:
             response = self.error.wrap_outer_middleware(
-                tail_router.error.trigger,
+                router.error.trigger,
                 {
                     **self._workflow_data,
                     **kwargs,
+                    "app": self,
+                    "router": router,
                     "exception": exception,
                 },
             )

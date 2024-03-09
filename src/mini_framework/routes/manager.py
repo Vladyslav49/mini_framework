@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+from dataclasses import fields
 from http import HTTPMethod, HTTPStatus
 from typing import Any, TYPE_CHECKING
 from unittest.mock import sentinel
 
+from mini_framework.routes.params_resolvers import resolve_params
 from mini_framework.validators.base import Validator
 from mini_framework.request import Request
 from mini_framework.middlewares.base import Middleware
@@ -41,7 +43,10 @@ class RoutesManager:
 
         # This route is used to check root filters
         self._route = Route(
-            callback=lambda: True, path="/", method=HTTPMethod.GET
+            callback=lambda: True,
+            path="/",
+            method=HTTPMethod.GET,
+            name="__root__",
         )
 
     def __iter__(self) -> Iterator[Route]:
@@ -64,7 +69,7 @@ class RoutesManager:
     def check_root_filters(self, **kwargs: Any) -> tuple[bool, dict[str, Any]]:
         return self._route.check(**kwargs)
 
-    def trigger(self, __validator__: Validator, **kwargs: Any) -> Any:
+    def trigger(self, **kwargs: Any) -> Any:
         for head_router in reversed(tuple(self._router.chain_head)):
             result, data = head_router.route.check_root_filters(**kwargs)
             if not result:
@@ -80,7 +85,16 @@ class RoutesManager:
 
             request: Request = kwargs["request"]
 
-            params = route.validate_params(request, __validator__)
+            resolved_params = resolve_params(route, request)
+
+            validator: Validator = kwargs["validator"]
+
+            obj = validator.validate_request(resolved_params, route.model)
+
+            params = {
+                field.name: getattr(obj, field.name)
+                for field in fields(route.model)
+            }
 
             kwargs.update(params)
 
@@ -98,8 +112,10 @@ class RoutesManager:
                     if route.response_model is not None
                     else route.return_annotation
                 )
-                obj = __validator__.validate_response(response, return_type)
-                return __validator__.serialize_response(obj, return_type)
+                obj = validator.validate_response(response, return_type)
+                return validator.prepare_response_for_serialization(
+                    obj, return_type
+                )
 
         return UNHANDLED
 
@@ -114,6 +130,7 @@ class RoutesManager:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         method: str,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
@@ -124,6 +141,7 @@ class RoutesManager:
                 callback,
                 path,
                 *filters,
+                name=name,
                 method=method,
                 status_code=status_code,
                 response_class=response_class,
@@ -139,13 +157,17 @@ class RoutesManager:
         path: str,
         /,
         *filters: CallbackType,
+        name: str | None = None,
         method: str,
         status_code: int = HTTPStatus.OK,
         response_class: type[Response] | None = None,
         response_model: type | None = None,
     ) -> CallbackType:
+        if name is None:
+            name = callback.__name__
         self._routes.append(
             Route(
+                name=name,
                 callback=callback,
                 path=self._router.prefix + path,
                 method=method,

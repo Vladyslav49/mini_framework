@@ -1,15 +1,20 @@
+from __future__ import annotations
+
 import json
 import keyword
 import re
 from collections.abc import Callable
 from http.cookies import SimpleCookie
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from urllib.parse import parse_qsl
 from wsgiref.types import WSGIEnvironment
 
 from multidict import CIMultiDict
 
 from mini_framework.datastructures import FormData, Address
+
+if TYPE_CHECKING:
+    from mini_framework import Application
 
 try:
     import multipart
@@ -25,6 +30,7 @@ COMPILED_PATH_PARAM_PATTERN = re.compile(PATH_PARAM_PATTERN)
 
 class Request:
     __slots__ = (
+        "_app",
         "_environ",
         "_path_params",
         "_json_loads",
@@ -38,11 +44,13 @@ class Request:
 
     def __init__(
         self,
+        app: Application,
         environ: WSGIEnvironment,
         *,
         path_params: dict[str, str],
         json_loads: Callable[..., Any] = json.loads,
     ) -> None:
+        self._app = app
         self._environ = environ
         self._path_params = path_params
         self._json_loads = json_loads
@@ -68,6 +76,24 @@ class Request:
         if host and port:
             return Address(host=host, port=port)
         return None
+
+    @property
+    def host_url(self) -> str:
+        url = self._environ["wsgi.url_scheme"] + "://"
+
+        if self._environ.get("HTTP_HOST"):
+            url += self._environ["HTTP_HOST"]
+        else:
+            url += self._environ["SERVER_NAME"]
+
+            if self._environ["wsgi.url_scheme"] == "https":
+                if self._environ["SERVER_PORT"] != "443":
+                    url += ":" + self._environ["SERVER_PORT"]
+            else:
+                if self._environ["SERVER_PORT"] != "80":
+                    url += ":" + self._environ["SERVER_PORT"]
+
+        return url
 
     @property
     def body(self) -> bytes:
@@ -131,6 +157,10 @@ class Request:
 
             self._form_data = FormData(fields=fields, files=files)
         return self._form_data
+
+    def url_for(self, name: str, /, **path_params: Any) -> str:
+        path = self._app.url_path_for(name, **path_params)
+        return self.host_url + path
 
 
 def ensure_trailing_slash(path: str) -> str:

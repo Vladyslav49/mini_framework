@@ -10,8 +10,7 @@ if TYPE_CHECKING:
 
 
 class ErrorsMiddleware(BaseMiddleware):
-    def __init__(self, app: Application) -> None:
-        self._app = app
+    __slots__ = ()
 
     def __call__(self, call_next: CallNext, data: dict[str, Any]) -> Any:
         try:
@@ -19,7 +18,8 @@ class ErrorsMiddleware(BaseMiddleware):
         except SkipRoute:
             raise
         except Exception as exception:
-            response: Response = self._app.propagate_error(exception, **data)
+            app: Application = data["app"]
+            response: Response = app.propagate_error(exception, **data)
             if response is not UNHANDLED:
                 return response
             raise

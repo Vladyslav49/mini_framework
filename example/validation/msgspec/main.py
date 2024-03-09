@@ -40,7 +40,9 @@ class MsgspecValidator(Validator):
                 str(e), value=obj, expected_type=return_type
             )
 
-    def serialize_response(self, obj: Any, return_type: type, /) -> Any:
+    def prepare_response_for_serialization(
+        self, obj: Any, return_type: type, /
+    ) -> Any:
         return msgspec.to_builtins(obj)
 
 

@@ -1,13 +1,12 @@
-from collections.abc import Sequence, Mapping
-from http import HTTPStatus
+from collections.abc import Sequence
 from os import PathLike
 from typing import Optional, Any
 
-from mini_framework.responses import HTMLResponse
+from mini_framework import Request
 
 try:
     import jinja2
-    from jinja2 import Environment, Template
+    from jinja2 import Environment, Template, pass_context
 except ImportError:
     jinja2 = None
 
@@ -34,25 +33,32 @@ class Jinja2Templates:
         elif env is not None:
             self._env = env
 
-    def render_html_response(
+        self._env.globals.setdefault("url_for", _url_for)
+
+    def render(
         self,
+        request: Request,
+        /,
+        *,
         name: str,
         context: dict[str, Any] | None = None,
-        *,
-        status_code: int = HTTPStatus.OK,
-        headers: Mapping[str, str] | None = None,
-        media_type: str | None = None,
-        charset: str = "utf-8",
-    ) -> HTMLResponse:
+    ) -> str:
+        if context is None:
+            context = {}
         template = self.get_template(name)
-        content = template.render(**context)
-        return HTMLResponse(
-            content,
-            status_code=status_code,
-            headers=headers,
-            media_type=media_type,
-            charset=charset,
-        )
+        content = template.render(request=request, **context)
+        return content
 
     def get_template(self, name: str) -> "Template":  # pyright: ignore[reportGeneralTypeIssues]
         return self._env.get_template(name)
+
+
+@pass_context  # pyright: ignore[reportPossiblyUnboundVariable]
+def _url_for(
+    context: dict[str, Any],
+    name: str,
+    /,
+    **path_params: Any,
+) -> str:
+    request: Request = context["request"]
+    return request.url_for(name, **path_params)
