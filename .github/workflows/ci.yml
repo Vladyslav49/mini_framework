@@ -71,4 +71,4 @@ jobs:
         run: poetry install --with test --all-extras
 
       - name: Run tests
-        run: pytest --random-order --count=3
+        run: poetry run pytest --random-order --count=3
