@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from unittest.mock import Mock, create_autospec
 
@@ -24,7 +25,9 @@ def test_create_staticfiles_with_nonexistent_directory(tmp_path: Path) -> None:
 
     with pytest.raises(
         NotADirectoryError,
-        match=f"Directory {str(directory)!r} does not exist or is not a directory",
+        match=re.escape(
+            f"Directory {str(directory)!r} does not exist or is not a directory"
+        ),
     ):
         StaticFiles(directory=directory)
 
@@ -37,7 +40,9 @@ def test_create_staticfiles_with_file_instead_of_directory(
 
     with pytest.raises(
         NotADirectoryError,
-        match=f"Directory {str(file)!r} does not exist or is not a directory",
+        match=re.escape(
+            f"Directory {str(file)!r} does not exist or is not a directory"
+        ),
     ):
         StaticFiles(directory=file)
 

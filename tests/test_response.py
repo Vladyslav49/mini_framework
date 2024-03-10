@@ -1,4 +1,5 @@
 import itertools
+import re
 from contextlib import AbstractContextManager, nullcontext
 from datetime import datetime, timedelta, UTC
 from email.utils import format_datetime
@@ -142,7 +143,7 @@ def test_invalid_file_path(tmp_path: Path) -> None:
     directory.mkdir()
 
     with pytest.raises(
-        ValueError, match=f"'{directory}' is not a valid file path"
+        ValueError, match=re.escape(f"'{directory}' is not a valid file path")
     ):
         FileResponse(directory)
 
