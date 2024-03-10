@@ -38,7 +38,7 @@ def test_register_middleware_via_base_middleware(app: Application) -> None:
     assert any(m is middleware for m in app.route.middleware)
 
 
-def test_outer_middleware(app: Application, mock_request: Mock) -> None:
+def test_outer_middleware(app: Application, mocked_request: Mock) -> None:
     is_callback_called = False
 
     app.filter(lambda: False)
@@ -53,13 +53,13 @@ def test_outer_middleware(app: Application, mock_request: Mock) -> None:
     def index():
         assert False  # noqa: B011
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     assert is_callback_called
 
 
 def test_get_route_in_middleware_and_callback(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     is_callback_called = False
 
@@ -77,12 +77,12 @@ def test_get_route_in_middleware_and_callback(
         nonlocal is_callback_called
         is_callback_called = True
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     assert is_callback_called
 
 
-def test_multiple_middlewares(app: Application, mock_request: Mock) -> None:
+def test_multiple_middlewares(app: Application, mocked_request: Mock) -> None:
     @app.route.middleware
     def middleware1(call_next: CallNext, data: dict[str, Any]) -> None:
         data["value"] = 1
@@ -101,11 +101,11 @@ def test_multiple_middlewares(app: Application, mock_request: Mock) -> None:
     def index(value: int) -> None:
         assert value == 2
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
 
 def test_get_response_in_middleware(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     @app.route.middleware
     def middleware(call_next: CallNext, data: dict[str, Any]) -> None:
@@ -118,11 +118,11 @@ def test_get_response_in_middleware(
     def index():
         return PlainTextResponse("Hello, World!")
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
 
 def test_skip_route_in_middleware(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     @app.middleware
     def middleware(call_next: CallNext, data: dict[str, Any]):
@@ -132,6 +132,6 @@ def test_skip_route_in_middleware(
     def index():
         assert False  # noqa: B011
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response is UNHANDLED

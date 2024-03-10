@@ -6,7 +6,7 @@ This is a mini framework for building web applications in Python.
 
 ## Usage
 ```python
-# app.py
+# main.py
 from mini_framework import Application
 from mini_framework.responses import PlainTextResponse
 
@@ -26,5 +26,5 @@ You need to install [gunicorn](https://github.com/benoitc/gunicorn) or any other
 
 ### Example using gunicorn
 ```bash
-$ gunicorn app:app
+$ gunicorn main:app
 ```

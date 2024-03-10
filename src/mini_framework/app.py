@@ -1,9 +1,9 @@
 import json
 from collections.abc import Iterable, Callable
-from http import HTTPStatus
-from typing import Any, Final
+from typing import Any
 from wsgiref.types import StartResponse, WSGIEnvironment
 
+from mini_framework.staticfiles import NOT_FOUND_RESPONSE
 from mini_framework.validators.base import Validator
 from mini_framework.middlewares.errors import ErrorsMiddleware
 from mini_framework.request import (
@@ -23,11 +23,6 @@ from mini_framework.router import Router
 from mini_framework.routes.manager import UNHANDLED
 from mini_framework.routes.route import Route
 from mini_framework.validators.pydantic import PydanticValidator
-
-_NOT_FOUND_RESPONSE: Final[JSONResponse] = JSONResponse(
-    {"detail": HTTPStatus.NOT_FOUND.phrase},
-    status_code=HTTPStatus.NOT_FOUND,
-)
 
 
 class Application(Router):
@@ -79,7 +74,7 @@ class Application(Router):
         path_template: str | None = self._get_path_template(path)
 
         if path_template is None:
-            response = _NOT_FOUND_RESPONSE
+            response = NOT_FOUND_RESPONSE
         else:
             path_params = extract_path_params(path_template, path)
 
@@ -93,7 +88,7 @@ class Application(Router):
             response = self.propagate(request)
 
             if response is UNHANDLED:
-                response = _NOT_FOUND_RESPONSE
+                response = NOT_FOUND_RESPONSE
 
         status = get_status_code_and_phrase(response.status_code)
         body = response.render()

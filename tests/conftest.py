@@ -1,9 +1,9 @@
 from http import HTTPMethod
-from unittest.mock import Mock
+from unittest.mock import Mock, create_autospec
 
 import pytest
 
-from mini_framework import Application
+from mini_framework import Application, Request
 
 
 @pytest.fixture()
@@ -12,8 +12,8 @@ def app() -> Application:
 
 
 @pytest.fixture()
-def mock_request() -> Mock:
-    request = Mock()
+def mocked_request() -> Mock:
+    request = create_autospec(Request)
     request.path = "/"
     request.method = HTTPMethod.GET
     return request

@@ -34,7 +34,7 @@ def test_multiple_routers_with_filters_propagation(
     filter1_return_value: bool,
     filter2_return_value: bool,
     expected_result: str,
-    mock_request: Mock,
+    mocked_request: Mock,
 ) -> None:
     router1 = Router()
     router2 = Router()
@@ -48,7 +48,7 @@ def test_multiple_routers_with_filters_propagation(
     app.include_router(router1)
     app.include_router(router2)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     if expected_result is UNHANDLED:
         assert response is UNHANDLED
@@ -65,7 +65,7 @@ def test_multiple_routers_with_filters_propagation(
 
 
 def test_multiple_routers_with_filters_and_router_without_filters_propagation(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     router1 = Router()
     router2 = Router()
@@ -76,13 +76,13 @@ def test_multiple_routers_with_filters_and_router_without_filters_propagation(
     app.include_router(router1)
     app.include_router(router2)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "second"
 
 
 def test_multiple_routers_and_filters_not_handled_propagation(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     router1 = Router()
     router2 = Router()
@@ -100,7 +100,7 @@ def test_multiple_routers_and_filters_not_handled_propagation(
     app.include_router(router1)
     app.include_router(router2)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response is UNHANDLED
     mocked_filter_for_router1.assert_called_once()
@@ -108,7 +108,7 @@ def test_multiple_routers_and_filters_not_handled_propagation(
 
 
 def test_router_filters_do_not_affect_to_another_router(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock(return_value=None)
     mocked_callback.__name__ = "name"
@@ -123,13 +123,13 @@ def test_router_filters_do_not_affect_to_another_router(
 
     router2.get("/")(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_called_once()
 
 
 def test_router_filters_affect_to_sub_router(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock()
     mocked_callback.__name__ = "name"
@@ -145,26 +145,26 @@ def test_router_filters_affect_to_sub_router(
 
     router2.get("/")(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_not_called()
 
 
 def test_filter_dependency_injection(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock(return_value=None)
     mocked_callback.__name__ = "name"
 
     app.get("/", lambda route: route.path == "/")(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_called_once()
 
 
 def test_filter_and_route_not_triggered(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock()
     mocked_callback.__name__ = "name"
@@ -172,14 +172,14 @@ def test_filter_and_route_not_triggered(
 
     app.get("/", lambda: False, mocked_filter)(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_not_called()
     mocked_filter.assert_not_called()
 
 
 def test_filter_not_triggered_for_app_with_filter(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock()
     mocked_callback.__name__ = "name"
@@ -188,7 +188,7 @@ def test_filter_not_triggered_for_app_with_filter(
     app.filter(lambda: False)
     app.get("/", lambda: mocked_filter)(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_not_called()
     mocked_filter.assert_not_called()

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from http import HTTPMethod, HTTPStatus
+from os import PathLike
 from typing import Any
 
 from mini_framework.errors.manager import ErrorsManager
@@ -9,6 +10,7 @@ from mini_framework.middlewares.base import Middleware
 from mini_framework.responses import Response, JSONResponse
 from mini_framework.routes.manager import RoutesManager
 from mini_framework.routes.route import CallbackType, NoMatchFound
+from mini_framework.staticfiles import StaticFiles
 
 
 class Router:
@@ -129,6 +131,28 @@ class Router:
             except NoMatchFound:
                 pass
         raise NoMatchFound(name, path_params)
+
+    def add_staticfiles(
+        self,
+        path: str,
+        /,
+        *,
+        directory: str | PathLike | Sequence[str | PathLike],
+        name: str = "static",
+    ) -> None:
+        if not path.startswith("/"):
+            raise ValueError(f"Path {path!r} must start with '/'")
+        if not path.endswith("/"):
+            raise ValueError(f"Path {path!r} must end with '/'")
+
+        staticfiles = StaticFiles(directory=directory)
+
+        path = path + "{path}" + "/"
+
+        self.route.register(
+            staticfiles.callback, path, name=name, method=HTTPMethod.GET
+        )
+        self.route.register(staticfiles.callback, path, method=HTTPMethod.HEAD)
 
     def outer_middleware(
         self, middleware: Middleware | None = None

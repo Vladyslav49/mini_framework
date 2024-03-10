@@ -32,20 +32,20 @@ def test_register_error_via_decorator(app: Application) -> None:
     assert any(error.callback is error_handler for error in app.error)
 
 
-def test_propagate_error(app: Application, mock_request: Mock) -> None:
+def test_propagate_error(app: Application, mocked_request: Mock) -> None:
     @app.error()
     def error(exception: Exception):
         assert isinstance(exception, Exception)
         assert str(exception) == "Error"
 
-    app.propagate_error(Exception("Error"), request=mock_request)
+    app.propagate_error(Exception("Error"), request=mocked_request)
 
 
 def test_errors_is_alias_for_error(app: Application) -> None:
     assert app.errors is app.error
 
 
-def test_error(app: Application, mock_request: Mock) -> None:
+def test_error(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise Exception
@@ -54,12 +54,12 @@ def test_error(app: Application, mock_request: Mock) -> None:
     def error():
         return PlainTextResponse("Error")
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "Error"
 
 
-def test_multiple_errors(app: Application, mock_request: Mock) -> None:
+def test_multiple_errors(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise Exception
@@ -72,12 +72,12 @@ def test_multiple_errors(app: Application, mock_request: Mock) -> None:
     def error2():
         assert False  # noqa: B011
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "Error"
 
 
-def test_do_not_handle_error(app: Application, mock_request: Mock) -> None:
+def test_do_not_handle_error(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise Exception("Error in index")
@@ -87,10 +87,10 @@ def test_do_not_handle_error(app: Application, mock_request: Mock) -> None:
         assert False  # noqa: B011
 
     with pytest.raises(Exception, match="Error in index"):
-        app.propagate(mock_request)
+        app.propagate(mocked_request)
 
 
-def test_handle_error_by_type(app: Application, mock_request: Mock) -> None:
+def test_handle_error_by_type(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise IndexError
@@ -99,12 +99,14 @@ def test_handle_error_by_type(app: Application, mock_request: Mock) -> None:
     def error():
         return PlainTextResponse("Error")
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "Error"
 
 
-def test_error_with_root_filter(app: Application, mock_request: Mock) -> None:
+def test_error_with_root_filter(
+    app: Application, mocked_request: Mock
+) -> None:
     app.error.filter(ExceptionTypeFilter(IndexError))
 
     @app.get("/")
@@ -116,10 +118,10 @@ def test_error_with_root_filter(app: Application, mock_request: Mock) -> None:
         assert False  # noqa: B011
 
     with pytest.raises(Exception, match="Error in index"):
-        app.propagate(mock_request)
+        app.propagate(mocked_request)
 
 
-def test_error_middleware(app: Application, mock_request: Mock) -> None:
+def test_error_middleware(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise IndexError
@@ -136,12 +138,14 @@ def test_error_middleware(app: Application, mock_request: Mock) -> None:
         assert middleware_data == "middleware_data"
         return PlainTextResponse("Error")
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "Error"
 
 
-def test_error_outer_middleware(app: Application, mock_request: Mock) -> None:
+def test_error_outer_middleware(
+    app: Application, mocked_request: Mock
+) -> None:
     @app.get("/")
     def index():
         raise IndexError
@@ -158,12 +162,12 @@ def test_error_outer_middleware(app: Application, mock_request: Mock) -> None:
         assert outer_middleware_data == "outer_middleware_data"
         return PlainTextResponse("Error")
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "Error"
 
 
-def test_error_with_filter(app: Application, mock_request: Mock) -> None:
+def test_error_with_filter(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise IndexError
@@ -172,7 +176,7 @@ def test_error_with_filter(app: Application, mock_request: Mock) -> None:
     def error():
         return PlainTextResponse("Error")
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "Error"
 
@@ -245,7 +249,7 @@ def test_create_http_exception_status_code_filter(
 
 
 def test_error_http_exception_status_code_filter(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     @app.get("/")
     def index():
@@ -255,14 +259,14 @@ def test_error_http_exception_status_code_filter(
     def error(exception: HTTPException):
         return PlainTextResponse("Error", status_code=exception.status_code)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
     assert response.content == "Error"
 
 
 def test_error_http_exception_status_code_filter_with_wrong_status_code(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     @app.get("/")
     def index():
@@ -272,14 +276,14 @@ def test_error_http_exception_status_code_filter_with_wrong_status_code(
     def error():
         assert False  # noqa: B011
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
     assert response.content == {"detail": HTTPStatus.IM_A_TEAPOT.phrase}
 
 
 def test_error_http_exception_status_code_filter_with_wrong_exception_type(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     @app.get("/")
     def index():
@@ -290,10 +294,10 @@ def test_error_http_exception_status_code_filter_with_wrong_exception_type(
         assert False  # noqa: B011
 
     with pytest.raises(Exception, match="Error in index"):
-        app.propagate(mock_request)
+        app.propagate(mocked_request)
 
 
-def test_skip_route(app: Application, mock_request: Mock) -> None:
+def test_skip_route(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise Exception("Error in index")
@@ -303,4 +307,4 @@ def test_skip_route(app: Application, mock_request: Mock) -> None:
         raise SkipRoute
 
     with pytest.raises(Exception, match="Error in index"):
-        app.propagate(mock_request)
+        app.propagate(mocked_request)

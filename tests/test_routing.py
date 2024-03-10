@@ -87,14 +87,14 @@ def test_prepare_kwargs(
 
 @pytest.mark.parametrize("method", METHODS)
 def test_register_route_with_specified_method(
-    app: Application, method: str, mock_request: Mock
+    app: Application, method: str, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock(return_value=None)
     mocked_callback.__name__ = "name"
     app.route.register(mocked_callback, "/", method=method)
-    mock_request.method = method
+    mocked_request.method = method
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_called_once()
 
@@ -104,100 +104,102 @@ def test_register_route_with_specified_method(
     [(method, getattr(Router, method.lower())) for method in METHODS],
 )
 def test_register_route_with_dynamic_route(
-    app: Application, mock_request: Mock, method: str, route: Callable
+    app: Application, mocked_request: Mock, method: str, route: Callable
 ) -> None:
     mocked_callback = Mock(return_value=None)
     mocked_callback.__name__ = "name"
     route(app, "/")(mocked_callback)
-    mock_request.method = method
+    mocked_request.method = method
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_called_once()
 
 
 def test_register_via_decorator_and_get_result(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     @app.get("/")
     def index():
         return PlainTextResponse("Hello, World!")
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "Hello, World!"
 
 
-def test_not_registered_route(app: Application, mock_request: Mock) -> None:
-    response = app.propagate(mock_request)
+def test_not_registered_route(app: Application, mocked_request: Mock) -> None:
+    response = app.propagate(mocked_request)
 
     assert response is UNHANDLED
 
 
 def test_successful_route_resolution(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock(return_value=None)
     mocked_callback.__name__ = "name"
 
     app.get("/", lambda: True)(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_called_once()
 
 
 def test_unsuccessful_route_resolution(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock()
     mocked_callback.__name__ = "name"
 
     app.get("/", lambda: False)(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_not_called()
 
 
 def test_successful_route_with_multiple_routes(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     mocked_callback = Mock(return_value=None)
     mocked_callback.__name__ = "name"
 
     app.get("/", lambda: True, lambda: True)(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_called_once()
 
 
-def test_route_not_triggered(app: Application, mock_request: Mock) -> None:
+def test_route_not_triggered(app: Application, mocked_request: Mock) -> None:
     mocked_callback = Mock()
     mocked_callback.__name__ = "name"
     mocked_filter = Mock(return_value=True)
 
     app.get("/", mocked_filter, lambda: False)(mocked_callback)
 
-    app.propagate(mock_request)
+    app.propagate(mocked_request)
 
     mocked_callback.assert_not_called()
     mocked_filter.assert_called_once()
 
 
-def test_skip_route(app: Application, mock_request: Mock) -> None:
+def test_skip_route(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise SkipRoute
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response is UNHANDLED
 
 
-def test_get_routers_and_routes(app: Application, mock_request: Mock) -> None:
-    mock_request.path_params = {}
+def test_get_routers_and_routes(
+    app: Application, mocked_request: Mock
+) -> None:
+    mocked_request.path_params = {}
 
     router1 = Router()
     router2 = Router()
@@ -214,7 +216,7 @@ def test_get_routers_and_routes(app: Application, mock_request: Mock) -> None:
     app.include_router(router3)
 
     routers_and_routes = list(
-        app._get_matching_routers_and_routes(mock_request)
+        app._get_matching_routers_and_routes(mocked_request)
     )
 
     routers_and_callbacks = [
@@ -236,10 +238,10 @@ def test_get_routers_and_routes(app: Application, mock_request: Mock) -> None:
     ],
 )
 def test_get_routers_not_found(
-    app: Application, mock_request: Mock, path: str, method: str
+    app: Application, mocked_request: Mock, path: str, method: str
 ) -> None:
-    mock_request.path = path
-    mock_request.method = method
+    mocked_request.path = path
+    mocked_request.method = method
 
     router1 = Router()
     router2 = Router()
@@ -250,14 +252,14 @@ def test_get_routers_not_found(
     app.include_router(router2)
 
     routers_and_routes = list(
-        app._get_matching_routers_and_routes(mock_request)
+        app._get_matching_routers_and_routes(mocked_request)
     )
 
     assert routers_and_routes == []
 
 
 def test_multiple_routers_propagation(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     router1 = Router()
     router2 = Router()
@@ -272,7 +274,7 @@ def test_multiple_routers_propagation(
     app.include_router(router2)
     app.include_router(router3)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.content == "first"
     mocked_filter.assert_not_called()
@@ -286,51 +288,53 @@ def route() -> Route:
 
 
 def test_resolve_upload_file_params_no_content_type_header_given_error(
-    mock_request: Mock, route: Route
+    mocked_request: Mock, route: Route
 ) -> None:
-    mock_request.form.side_effect = ValueError("No Content-Type header given!")
+    mocked_request.form.side_effect = ValueError(
+        "No Content-Type header given!"
+    )
     route.upload_files = ["upload_file"]
     params = {}
 
-    _resolve_upload_file_params(route, mock_request, params=params)
+    _resolve_upload_file_params(route, mocked_request, params=params)
 
     assert params == {}
 
 
 def test_resolve_upload_file_params_unexpected_error_message(
-    mock_request: Mock, route: Route
+    mocked_request: Mock, route: Route
 ) -> None:
-    mock_request.form.side_effect = ValueError("Hello, World!")
+    mocked_request.form.side_effect = ValueError("Hello, World!")
     route.upload_files = ["upload_file"]
     params = {}
 
     with pytest.raises(ValueError, match="Hello, World!"):
-        _resolve_upload_file_params(route, mock_request, params=params)
+        _resolve_upload_file_params(route, mocked_request, params=params)
 
 
 def test_resolve_upload_file_params_no_files_specified(
-    mock_request: Mock, route: Route
+    mocked_request: Mock, route: Route
 ) -> None:
-    mock_request.form.return_value = FormData(fields=[], files=[])
+    mocked_request.form.return_value = FormData(fields=[], files=[])
     route.upload_files = ["upload_file"]
     params = {}
 
-    _resolve_upload_file_params(route, mock_request, params=params)
+    _resolve_upload_file_params(route, mocked_request, params=params)
 
     assert params == {}
 
 
 def test_resolve_upload_file_params_missing_one_file(
-    mock_request: Mock, route: Route
+    mocked_request: Mock, route: Route
 ) -> None:
     file = create_autospec(File)
 
-    mock_request.form.return_value = FormData(fields=[], files=[file])
+    mocked_request.form.return_value = FormData(fields=[], files=[file])
 
     route.upload_files = ["upload_file_1", "upload_file_2"]
     params = {}
 
-    _resolve_upload_file_params(route, mock_request, params=params)
+    _resolve_upload_file_params(route, mocked_request, params=params)
 
     assert len(params) == 1
     assert isinstance(params["upload_file_1"], UploadFile)

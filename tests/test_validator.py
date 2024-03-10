@@ -34,20 +34,20 @@ from mini_framework.params import (
 )
 def test_missing_params(
     app: Application,
-    mock_request: Mock,
+    mocked_request: Mock,
     param: Param,
     param_type: str,
 ) -> None:
-    setattr(mock_request, param_type, {})
-    mock_request.json.return_value = {}
-    mock_request.form.return_value = FormData(fields=[], files=[])
+    setattr(mocked_request, param_type, {})
+    mocked_request.json.return_value = {}
+    mocked_request.form.return_value = FormData(fields=[], files=[])
 
     def index(name: Annotated[Any, param]):
         assert False  # noqa: B011
 
     app.get("/")(index)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert len(response.content["detail"]) == 1
     assert (
@@ -61,10 +61,10 @@ def test_missing_params(
 
 
 def test_missing_body_model_param(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
-    mock_request.body_models = {}
-    mock_request.json.return_value = {}
+    mocked_request.body_models = {}
+    mocked_request.json.return_value = {}
 
     @dataclass(frozen=True, slots=True, kw_only=True)
     class Model:
@@ -76,7 +76,7 @@ def test_missing_body_model_param(
 
     app.get("/")(index)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert len(response.content["detail"]) == 2
     assert (
@@ -98,20 +98,20 @@ def test_missing_body_model_param(
 
 
 def test_missing_fields_and_files_params(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     field = Mock()
     field.field_name.decode.return_value = "nonexistent_field"
     file = Mock()
     file.field_name.decode.return_value = "nonexistent_file"
-    mock_request.form.return_value = FormData(fields=[field], files=[file])
+    mocked_request.form.return_value = FormData(fields=[field], files=[file])
 
     def index(field: Annotated[str, Field()], file: Annotated[bytes, File()]):
         assert False  # noqa: B011
 
     app.get("/")(index)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert len(response.content["detail"]) == 2
     assert (
@@ -132,13 +132,13 @@ def test_missing_fields_and_files_params(
     )
 
 
-def test_validation_error(app: Application, mock_request: Mock) -> None:
+def test_validation_error(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index() -> int:
         return "World"  # type: ignore[return-value]
 
     with pytest.raises(ResponseValidationError) as exc_info:
-        app.propagate(mock_request)
+        app.propagate(mocked_request)
 
     assert exc_info.value.value == "World"
     assert exc_info.value.expected_type is int

@@ -1,4 +1,6 @@
 from contextlib import nullcontext, AbstractContextManager
+from http import HTTPMethod
+from pathlib import Path
 
 import pytest
 
@@ -181,3 +183,41 @@ def test_include_router_with_default_response_class(
     app.include_router(router, default_response_class=default_response_class)
 
     assert router.default_response_class == expected_default_response_class
+
+
+@pytest.mark.parametrize(
+    "path, method, contextmanager",
+    [
+        (
+            "/",
+            HTTPMethod.GET,
+            nullcontext(),
+        ),
+        (
+            "wrong_path/",
+            HTTPMethod.GET,
+            pytest.raises(
+                ValueError, match="Path 'wrong_path/' must start with '/'"
+            ),
+        ),
+        (
+            "/wrong_path",
+            HTTPMethod.GET,
+            pytest.raises(
+                ValueError, match="Path '/wrong_path' must end with '/'"
+            ),
+        ),
+    ],
+)
+def test_add_staticfiles(
+    app: Application,
+    path: str,
+    method: str,
+    contextmanager: AbstractContextManager,
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "directory"
+    directory.mkdir()
+
+    with contextmanager:
+        app.add_staticfiles(path, directory=directory)

@@ -33,31 +33,31 @@ def test_render_response(
     assert response.render() == expected_rendered_response
 
 
-def test_status_code(app: Application, mock_request: Mock) -> None:
+def test_status_code(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         return PlainTextResponse(
             "Hello, World!", status_code=HTTPStatus.IM_A_TEAPOT
         )
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
 
 
-def test_http_exception(app: Application, mock_request: Mock) -> None:
+def test_http_exception(app: Application, mocked_request: Mock) -> None:
     @app.get("/")
     def index():
         raise HTTPException(status_code=HTTPStatus.IM_A_TEAPOT)
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
     assert response.content == {"detail": HTTPStatus.IM_A_TEAPOT.phrase}
 
 
 def test_http_exception_with_detail(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     @app.get("/")
     def index():
@@ -66,14 +66,14 @@ def test_http_exception_with_detail(
             detail="I'm a teapot with detail",
         )
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
     assert response.content == {"detail": "I'm a teapot with detail"}
 
 
 def test_http_exception_with_headers(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     @app.get("/")
     def index():
@@ -81,7 +81,7 @@ def test_http_exception_with_headers(
             status_code=HTTPStatus.IM_A_TEAPOT, headers={"X-Header": "Value"}
         )
 
-    response = app.propagate(mock_request)
+    response = app.propagate(mocked_request)
 
     assert response.status_code == HTTPStatus.IM_A_TEAPOT
     assert response.content == {"detail": HTTPStatus.IM_A_TEAPOT.phrase}
@@ -89,7 +89,7 @@ def test_http_exception_with_headers(
 
 
 def test_create_http_exception_with_invalid_status_code(
-    app: Application, mock_request: Mock
+    app: Application, mocked_request: Mock
 ) -> None:
     with pytest.raises(ValueError, match="Invalid status code: 999"):
         HTTPException(status_code=999)
