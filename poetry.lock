@@ -889,4 +889,4 @@ templates = ["jinja2"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "503cb4ca134340a7c720b004713aef1aaaa792119f983ddca1ecdc843929a70c"
+content-hash = "59a8e7fbcbd03c56262a4ebb6109da86106ab9823761e51698351abc0858c02b"
