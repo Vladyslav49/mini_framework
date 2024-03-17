@@ -220,4 +220,4 @@ def test_add_staticfiles(
     directory.mkdir()
 
     with contextmanager:
-        app.add_staticfiles(path, directory=directory)
+        app.add_staticfiles(path, directory)

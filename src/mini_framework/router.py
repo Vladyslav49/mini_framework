@@ -3,14 +3,24 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Sequence
 from http import HTTPMethod, HTTPStatus
 from os import PathLike
-from typing import Any
+from pathlib import Path
+from typing import Any, Final
 
+from mini_framework.request import Request
 from mini_framework.errors.manager import ErrorsManager
 from mini_framework.middlewares.base import Middleware
-from mini_framework.responses import Response, JSONResponse
+from mini_framework.responses import Response, JSONResponse, FileResponse
 from mini_framework.routes.manager import RoutesManager
 from mini_framework.routes.route import CallbackType, NoMatchFound
-from mini_framework.staticfiles import StaticFiles
+from mini_framework.staticfiles import is_not_modified
+
+NOT_FOUND_RESPONSE: Final[JSONResponse] = JSONResponse(
+    {"detail": HTTPStatus.NOT_FOUND.phrase},
+    status_code=HTTPStatus.NOT_FOUND,
+)
+NOT_MODIFIED_RESPONSE: Final[Response] = Response(
+    content=None, status_code=HTTPStatus.NOT_MODIFIED
+)
 
 
 class Router:
@@ -136,8 +146,8 @@ class Router:
         self,
         path: str,
         /,
-        *,
         directory: str | PathLike | Sequence[str | PathLike],
+        *,
         name: str = "static",
     ) -> None:
         if not path.startswith("/"):
@@ -145,14 +155,35 @@ class Router:
         if not path.endswith("/"):
             raise ValueError(f"Path {path!r} must end with '/'")
 
-        staticfiles = StaticFiles(directory=directory)
-
         path = path + "{path}" + "/"
 
-        self.route.register(
-            staticfiles.callback, path, name=name, method=HTTPMethod.GET
-        )
-        self.route.register(staticfiles.callback, path, method=HTTPMethod.HEAD)
+        if not isinstance(directory, Sequence) or isinstance(directory, str):
+            directory = [directory]
+
+        directories = tuple(map(Path, directory))
+
+        for directory in directories:
+            if not directory.is_dir():
+                raise NotADirectoryError(
+                    f"Directory '{directory}' does not exist or is not a directory"
+                )
+
+        def callback(request: Request):
+            for directory in directories:
+                file_path = directory / request.path_params["path"]
+
+                if not file_path.is_file():
+                    return NOT_FOUND_RESPONSE
+
+                response = FileResponse(file_path)
+
+                if is_not_modified(request, response):
+                    return NOT_MODIFIED_RESPONSE
+
+                return response
+
+        self.route.register(callback, path, name=name, method=HTTPMethod.GET)
+        self.route.register(callback, path, method=HTTPMethod.HEAD)
 
     def outer_middleware(
         self, middleware: Middleware | None = None

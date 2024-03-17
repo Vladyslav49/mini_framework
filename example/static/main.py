@@ -7,7 +7,7 @@ from mini_framework.templating import Jinja2Templates
 BASE_DIR = Path(__file__).parent
 
 app = Application()
-app.add_staticfiles("/css/", directory=BASE_DIR / "static" / "css", name="css")
+app.add_staticfiles("/css/", BASE_DIR / "static" / "css", name="css")
 
 templates = Jinja2Templates(BASE_DIR / "templates")
 

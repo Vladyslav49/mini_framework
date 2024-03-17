@@ -3,7 +3,6 @@ from collections.abc import Iterable, Callable
 from typing import Any
 from wsgiref.types import StartResponse, WSGIEnvironment
 
-from mini_framework.staticfiles import NOT_FOUND_RESPONSE
 from mini_framework.validators.base import Validator
 from mini_framework.middlewares.errors import ErrorsMiddleware
 from mini_framework.request import (
@@ -19,7 +18,7 @@ from mini_framework.responses import (
     FileResponse,
     JSONResponse,
 )
-from mini_framework.router import Router
+from mini_framework.router import Router, NOT_FOUND_RESPONSE
 from mini_framework.routes.manager import UNHANDLED
 from mini_framework.routes.route import Route
 from mini_framework.validators.pydantic import PydanticValidator
