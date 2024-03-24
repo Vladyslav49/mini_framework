@@ -14,9 +14,3 @@ class Validator(ABC):
         self, obj: Any, return_type: type, /
     ) -> Any:  # pragma: no cover
         raise NotImplementedError
-
-    @abstractmethod
-    def prepare_response_for_serialization(
-        self, obj: Any, return_type: type, /
-    ) -> Any:  # pragma: no cover
-        raise NotImplementedError

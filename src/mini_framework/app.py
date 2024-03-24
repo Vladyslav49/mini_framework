@@ -3,6 +3,10 @@ from collections.abc import Iterable, Callable
 from typing import Any
 from wsgiref.types import StartResponse, WSGIEnvironment
 
+from mini_framework.serialization_preparer.base import SerializationPreparer
+from mini_framework.serialization_preparer.pydantic import (
+    PydanticSerializationPreparer,
+)
 from mini_framework.validators.base import Validator
 from mini_framework.middlewares.errors import ErrorsMiddleware
 from mini_framework.request import (
@@ -25,7 +29,12 @@ from mini_framework.validators.pydantic import PydanticValidator
 
 
 class Application(Router):
-    __slots__ = ("_workflow_data", "_validator", "_json_loads")
+    __slots__ = (
+        "_workflow_data",
+        "_validator",
+        "_serialization_preparer",
+        "_json_loads",
+    )
 
     def __init__(
         self,
@@ -34,6 +43,7 @@ class Application(Router):
         prefix: str = "",
         default_response_class: type[Response] = JSONResponse,
         validator: Validator = PydanticValidator(),
+        serialization_preparer: SerializationPreparer = PydanticSerializationPreparer(),
         json_loads: Callable[..., Any] = json.loads,
         **kwargs: Any,
     ) -> None:
@@ -44,6 +54,7 @@ class Application(Router):
         )
         self._workflow_data: dict[str, Any] = kwargs
         self._validator = validator
+        self._serialization_preparer = serialization_preparer
         self._json_loads = json_loads
 
         self.route.outer_middleware.register(ErrorsMiddleware())
@@ -134,6 +145,7 @@ class Application(Router):
                     "request": request,
                     "response": response_obj,
                     "validator": self._validator,
+                    "serialization_preparer": self._serialization_preparer,
                 },
             )
 

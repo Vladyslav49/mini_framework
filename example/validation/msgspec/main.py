@@ -8,6 +8,7 @@ from msgspec import Struct, ValidationError
 from mini_framework import Application
 from mini_framework.params import Query
 from mini_framework.responses import Response
+from mini_framework.serialization_preparer.base import SerializationPreparer
 from mini_framework.validators.base import Validator
 from mini_framework.exceptions import (
     RequestValidationError,
@@ -40,13 +41,16 @@ class MsgspecValidator(Validator):
                 str(e), value=obj, expected_type=return_type
             )
 
-    def prepare_response_for_serialization(
-        self, obj: Any, return_type: type, /
-    ) -> Any:
+
+class MsgspecSerializationPreparer(SerializationPreparer):
+    def prepare_response(self, obj: Any, return_type: type, /) -> Any:
         return msgspec.to_builtins(obj)
 
 
-app = Application(validator=MsgspecValidator())
+app = Application(
+    validator=MsgspecValidator(),
+    serialization_preparer=MsgspecSerializationPreparer(),
+)
 
 
 class User(Struct, frozen=True):  # pyright: ignore[reportCallIssue, reportGeneralTypeIssues]

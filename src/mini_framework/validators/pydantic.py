@@ -4,7 +4,6 @@ from functools import cache
 from typing import Any
 
 from pydantic import TypeAdapter, ValidationError, ConfigDict
-from pydantic_core import to_jsonable_python
 
 from mini_framework.responses import Response
 from mini_framework.validators.base import Validator
@@ -43,20 +42,6 @@ class PydanticValidator(Validator):
                 value=obj,
                 expected_type=return_type,
             )
-
-    def prepare_response_for_serialization(
-        self, obj: Any, return_type: type, /
-    ) -> Any:
-        if inspect.isclass(return_type) and (
-            issubclass(return_type, Response) or return_type is Any
-        ):
-            if isinstance(obj, Response):
-                obj.content = to_jsonable_python(obj.content)
-                return obj
-            return to_jsonable_python(obj)
-
-        adapter = _get_adapter(return_type)
-        return adapter.dump_python(obj, mode="json")
 
 
 @cache

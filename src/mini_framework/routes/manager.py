@@ -7,6 +7,7 @@ from typing import Any, TYPE_CHECKING
 from unittest.mock import sentinel
 
 from mini_framework.routes.params_resolvers import resolve_params
+from mini_framework.serialization_preparer.base import SerializationPreparer
 from mini_framework.validators.base import Validator
 from mini_framework.request import Request
 from mini_framework.middlewares.base import Middleware
@@ -113,7 +114,10 @@ class RoutesManager:
                     else route.return_annotation
                 )
                 obj = validator.validate_response(response, return_type)
-                return validator.prepare_response_for_serialization(
+                serialization_preparer: SerializationPreparer = data[
+                    "serialization_preparer"
+                ]
+                return serialization_preparer.prepare_response(
                     obj, return_type
                 )
 
